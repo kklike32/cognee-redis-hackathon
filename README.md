@@ -165,6 +165,29 @@ python scripts/ingest_sample.py
 python scripts/query_sample.py
 ```
 
+## Streamlit Demo UI
+
+Run the Sherlock demo UI locally:
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+The UI has two tabs:
+
+- AE View: select `Deel`, enter deal context, and generate a deterministic cited brief.
+- Analyst Review: approve, reject, or edit pending changes from `data/pending/pending_changes.json`.
+
+Approval appends the final text to `data/wiki/deel.md` under `## Recent Analyst-Approved Updates` and invalidates the local Redis cache prefix for Deel. Rejection only marks the pending change rejected.
+
+Reset the demo state at any time:
+
+```bash
+python scripts/reset_demo.py
+```
+
+Redis is optional for the UI. If Redis is unavailable, Sherlock shows a warning and continues in no-cache mode.
+
 ## Example Flow
 
 1. Ingest the sample markdown notes.
