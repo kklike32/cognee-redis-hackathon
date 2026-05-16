@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import Settings, get_settings
@@ -20,6 +21,20 @@ def wiki_path(competitor: str = "deel", settings: Settings | None = None) -> Pat
 def read_wiki(competitor: str = "deel", settings: Settings | None = None) -> str:
     path = wiki_path(competitor, settings)
     return path.read_text(encoding="utf-8")
+
+
+def write_wiki(markdown: str, competitor: str = "deel", settings: Settings | None = None) -> Path:
+    path = wiki_path(competitor, settings)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(markdown, encoding="utf-8")
+    return path
+
+
+def wiki_last_updated(competitor: str = "deel", settings: Settings | None = None) -> str:
+    path = wiki_path(competitor, settings)
+    if not path.exists():
+        return "missing"
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _section_bounds(markdown: str, heading: str) -> tuple[int, int]:

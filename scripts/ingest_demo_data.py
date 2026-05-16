@@ -9,7 +9,16 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sherlock.ingest import ingest_demo_data
+from sherlock.wiki_builder import build_company_wiki
 
 
 if __name__ == "__main__":
-    print(json.dumps(ingest_demo_data(), indent=2))
+    print(
+        json.dumps(
+            {
+                "wiki": build_company_wiki(company="deel", use_llm=True),
+                "ingest": ingest_demo_data(),
+            },
+            indent=2,
+        )
+    )

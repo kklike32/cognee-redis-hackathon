@@ -52,7 +52,7 @@ class Settings:
     vector_db_provider: str = "redis"
     vector_db_url: str = "redis://localhost:6379"
     cache_ttl_seconds: int = 900
-    default_competitor: str = "deel"
+    default_company: str = "deel"
 
     @property
     def data_dir(self) -> Path:
@@ -75,14 +75,19 @@ class Settings:
         return self.root_dir / ".cache" / "sherlock_chunks.json"
 
 
+def _redis_url_from_env() -> str:
+    explicit = os.getenv("REDIS_URL")
+    if explicit and explicit.strip():
+        return explicit
+    host = os.getenv("REDIS_HOST", "localhost")
+    port = os.getenv("REDIS_PORT", "6379")
+    return f"redis://{host}:{port}/0"
+
+
 def get_settings() -> Settings:
     _load_env()
-    redis_url = os.getenv("REDIS_URL") or (
-        f"redis://{os.getenv('REDIS_HOST', 'localhost')}:"
-        f"{os.getenv('REDIS_PORT', '6379')}/0"
-    )
     return Settings(
-        redis_url=redis_url,
+        redis_url=_redis_url_from_env(),
         cognee_dataset_name=os.getenv("COGNEE_DATASET_NAME", "sherlock_deel_demo"),
         cognee_skip_cognify=_env_bool("COGNEE_SKIP_COGNIFY", True),
         mock_embedding=_env_bool("MOCK_EMBEDDING", True),
@@ -95,5 +100,5 @@ def get_settings() -> Settings:
         vector_db_provider=os.getenv("VECTOR_DB_PROVIDER", "redis"),
         vector_db_url=os.getenv("VECTOR_DB_URL", "redis://localhost:6379"),
         cache_ttl_seconds=_env_int("SHERLOCK_CACHE_TTL_SECONDS", 900),
-        default_competitor=os.getenv("SHERLOCK_COMPETITOR", "deel").lower(),
+        default_company=os.getenv("SHERLOCK_COMPANY", "deel").lower(),
     )

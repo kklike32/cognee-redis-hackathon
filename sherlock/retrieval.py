@@ -32,12 +32,13 @@ def _score(query: str, chunk: dict[str, Any]) -> float:
     if not q:
         return 0.0
     overlap = len(q & haystack) / len(q)
-    source_bonus = 0.08 if "wiki" in str(chunk.get("source", "")) else 0.0
-    return overlap + source_bonus
+    source = str(chunk.get("source", "")).lower()
+    wiki_bonus = 0.08 if "/wiki/" in source or "data/wiki" in source else 0.0
+    return overlap + wiki_bonus
 
 
-def split_markdown(path: Path, competitor: str = "deel") -> list[dict[str, Any]]:
-    text = path.read_text(encoding="utf-8")
+def split_markdown(path: Path, company: str = "deel") -> list[dict[str, Any]]:
+    text = path.read_text(encoding="utf-8", errors="ignore")
     lines = text.splitlines()
     heading_stack: list[tuple[int, str]] = []
     chunks: list[dict[str, Any]] = []
@@ -65,7 +66,8 @@ def split_markdown(path: Path, competitor: str = "deel") -> list[dict[str, Any]]
                     "text": paragraph,
                     "source": str(path),
                     "metadata": {
-                        "competitor": competitor,
+                        "company": company,
+                        "competitor": company,
                         "document_id": _slug(path.stem),
                         "heading_path": heading_path(),
                         "chunk_index": len(chunks),
@@ -100,120 +102,86 @@ def load_local_chunks(settings: Settings | None = None) -> list[dict[str, Any]]:
     return raw if isinstance(raw, list) else []
 
 
-def _markdown_paths(settings: Settings, competitor: str) -> list[Path]:
-    paths = [settings.wiki_dir / f"{competitor.lower()}.md"]
+def save_local_chunks(chunks: list[dict[str, Any]], settings: Settings | None = None) -> None:
+    settings = settings or get_settings()
+    settings.local_chunk_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = {chunk.get("id"): chunk for chunk in load_local_chunks(settings) if chunk.get("id")}
+    for chunk in chunks:
+        if chunk.get("id"):
+            existing[chunk["id"]] = chunk
+    settings.local_chunk_path.write_text(
+        json.dumps(list(existing.values()), indent=2),
+        encoding="utf-8",
+    )
+
+
+def _markdown_paths(settings: Settings, company: str) -> list[Path]:
+    paths = [settings.wiki_dir / f"{company.lower()}.md"]
     paths.extend(sorted(settings.sources_dir.glob("*.md")))
     return [path for path in paths if path.exists()]
 
 
-def _load_searchable_chunks(settings: Settings, competitor: str) -> list[dict[str, Any]]:
+def _load_searchable_chunks(settings: Settings, company: str) -> list[dict[str, Any]]:
     chunks = load_local_chunks(settings)
     if chunks:
         return chunks
-
     markdown_chunks: list[dict[str, Any]] = []
-    for path in _markdown_paths(settings, competitor):
-        markdown_chunks.extend(split_markdown(path, competitor=competitor))
+    for path in _markdown_paths(settings, company):
+        markdown_chunks.extend(split_markdown(path, company=company))
     return markdown_chunks
-
-
-def save_local_chunks(chunks: list[dict[str, Any]], settings: Settings | None = None) -> None:
-    settings = settings or get_settings()
-    settings.local_chunk_path.parent.mkdir(parents=True, exist_ok=True)
-    settings.local_chunk_path.write_text(json.dumps(chunks, indent=2), encoding="utf-8")
-
-
-def _decorate_results(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    decorated = []
-    for index, chunk in enumerate(chunks, start=1):
-        item = dict(chunk)
-        metadata = item.get("metadata") or {}
-        if not isinstance(metadata, dict):
-            metadata = {}
-            item["metadata"] = metadata
-        source_path = str(item.get("source_path") or item.get("source") or "")
-        source_id = str(metadata.get("document_id") or _slug(Path(source_path).stem))
-        item.setdefault("source", source_path)
-        item["source_path"] = source_path
-        item["source_id"] = source_id
-        item["citation_label"] = f"S{index}"
-        item.setdefault("title", metadata.get("heading_path") or source_id)
-        item.setdefault("text", "")
-        decorated.append(item)
-    return decorated
 
 
 def search_local(
     query: str,
-    competitor: str = "deel",
+    company: str = "deel",
     top_k: int = 6,
     settings: Settings | None = None,
 ) -> list[dict[str, Any]]:
     settings = settings or get_settings()
-    chunks = _load_searchable_chunks(settings, competitor)
-    competitor = competitor.lower()
+    company = company.lower()
     chunks = [
         chunk
-        for chunk in chunks
-        if (chunk.get("metadata") or {}).get("competitor", competitor).lower() == competitor
+        for chunk in _load_searchable_chunks(settings, company)
+        if (chunk.get("metadata") or {}).get("company", company).lower() == company
+        or (chunk.get("metadata") or {}).get("competitor", company).lower() == company
     ]
-    scored = sorted(
-        ((_score(query, chunk), chunk) for chunk in chunks),
-        key=lambda item: item[0],
-        reverse=True,
-    )
+    scored = sorted(((_score(query, chunk), chunk) for chunk in chunks), key=lambda item: item[0], reverse=True)
     results = []
     for score, chunk in scored[:top_k]:
         item = dict(chunk)
         item["score"] = round(score, 4)
-        item["retrieval_source"] = "local"
+        item["retrieval_source"] = "local-index"
         results.append(item)
     return results
 
 
 def search_cognee(query: str, top_k: int, settings: Settings | None = None) -> tuple[list[dict[str, Any]], str]:
-    settings = settings or get_settings()
     try:
-        import cognee
-        from cognee import SearchType
-    except ImportError:
+        from app.cognee_client import CogneeClient
+    except Exception:
         return [], "missing"
     try:
-        import asyncio
-
-        async def _search():
-            return await cognee.search(
-                query_text=query,
-                query_type=SearchType.CHUNKS,
-                datasets=[settings.cognee_dataset_name],
-                top_k=top_k,
-            )
-
-        raw_results = asyncio.run(_search())
+        results = CogneeClient().search(query, top_k=top_k)
     except Exception as exc:
         return [], f"error: {exc}"
     normalized = []
-    for item in raw_results or []:
-        if isinstance(item, dict):
-            chunk = dict(item)
-        elif hasattr(item, "model_dump"):
-            chunk = item.model_dump()
-        else:
-            chunk = {"text": str(item)}
+    for item in results or []:
+        chunk = dict(item) if isinstance(item, dict) else {"text": str(item)}
+        chunk.setdefault("source", "cognee")
         chunk["retrieval_source"] = "cognee"
         normalized.append(chunk)
-    return normalized[:top_k], "ok"
+    return normalized[:top_k], "indexed" if normalized else "added_not_cognified"
 
 
 def retrieve_context_with_status(
     query: str,
-    competitor: str = "deel",
+    company: str = "deel",
     top_k: int = 6,
     settings: Settings | None = None,
 ) -> RetrievalResult:
     settings = settings or get_settings()
     cognee_chunks, cognee_status = search_cognee(query, top_k=top_k, settings=settings)
-    local_chunks = search_local(query, competitor=competitor, top_k=top_k, settings=settings)
+    local_chunks = search_local(query, company=company, top_k=top_k, settings=settings)
     merged: list[dict[str, Any]] = []
     seen: set[str] = set()
     for chunk in [*cognee_chunks, *local_chunks]:
@@ -228,24 +196,30 @@ def retrieve_context_with_status(
         chunks=merged,
         source_status={
             "cognee": cognee_status,
-            "local": "ok" if local_chunks else "empty",
+            "local_index": "ok" if local_chunks else "empty",
         },
     )
 
 
 def retrieve_context(
     query: str,
-    competitor: str = "deel",
+    company: str = "deel",
     top_k: int = 6,
     settings: Settings | None = None,
 ) -> list[dict[str, Any]]:
-    if isinstance(competitor, int):
-        top_k = competitor
-        competitor = "deel"
-    result = retrieve_context_with_status(
-        query=query,
-        competitor=competitor,
-        top_k=top_k,
-        settings=settings,
-    )
-    return _decorate_results(result.chunks)
+    result = retrieve_context_with_status(query, company=company, top_k=top_k, settings=settings)
+    decorated = []
+    for index, chunk in enumerate(result.chunks, start=1):
+        item = dict(chunk)
+        metadata = item.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+            item["metadata"] = metadata
+        source_path = str(item.get("source_path") or item.get("source") or "")
+        item["source_path"] = source_path
+        item["source_id"] = str(metadata.get("document_id") or _slug(Path(source_path).stem))
+        item["citation_label"] = f"S{index}"
+        item.setdefault("title", metadata.get("heading_path") or item["source_id"])
+        item.setdefault("text", "")
+        decorated.append(item)
+    return decorated
