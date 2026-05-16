@@ -20,6 +20,7 @@ dependencies = [
   "requests>=2.32",
   "numpy>=1.26",
   "pytest>=8.0",
+  "streamlit>=1.37",
 ]
 
 [project.optional-dependencies]
