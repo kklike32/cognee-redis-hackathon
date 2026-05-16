@@ -28,6 +28,32 @@ def save_changes(changes: list[dict[str, Any]], settings: Settings | None = None
     pending_path.write_text(json.dumps(changes, indent=2), encoding="utf-8")
 
 
+def upsert_pending_changes(
+    new_changes: list[dict[str, Any]],
+    *,
+    settings: Settings | None = None,
+    path: Path | None = None,
+) -> list[dict[str, Any]]:
+    changes = load_changes(settings=settings, path=path)
+    by_id = {change["id"]: change for change in changes if change.get("id")}
+    for incoming in new_changes:
+        change_id = incoming.get("id")
+        if not isinstance(change_id, str) or not change_id:
+            continue
+        existing = by_id.get(change_id)
+        if existing and existing.get("status") != "pending":
+            continue
+        merged = dict(existing or {})
+        merged.update(incoming)
+        merged.setdefault("status", "pending")
+        merged.setdefault("created_at", _now())
+        merged["updated_at"] = _now()
+        by_id[change_id] = merged
+    merged_changes = list(by_id.values())
+    save_changes(merged_changes, settings=settings, path=path)
+    return merged_changes
+
+
 def pending_only(settings: Settings | None = None) -> list[dict[str, Any]]:
     return [change for change in load_changes(settings) if change.get("status") == "pending"]
 

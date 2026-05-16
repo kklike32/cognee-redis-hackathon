@@ -28,23 +28,109 @@ python3 -m pip install -e .
 
 The reliable demo path does not require an LLM key. If `SHERLOCK_USE_LLM=true` and `OPENAI_API_KEY` or `LLM_API_KEY` is set, Sherlock will try LLM wiki/brief synthesis and fall back to deterministic generation on failure.
 
-## Run The Demo
+## Environment Variables
+
+Required / supported:
+
+- `REDIS_URL`
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `REDIS_USERNAME`
+- `REDIS_PASSWORD`
+- `REDIS_SSL`
+- `REDIS_ACCOUNT_KEY`
+- `REDIS_API_KEY`
+- `ENABLE_BACKEND_ACCESS_CONTROL`
+- `MOCK_EMBEDDING`
+- `COGNEE_SKIP_COGNIFY`
+- `COGNEE_DATASET_NAME`
+- `LLM_PROVIDER`
+- `LLM_MODEL`
+- `LLM_ENDPOINT`
+- `LLM_API_KEY`
+- `EMBEDDING_PROVIDER`
+- `EMBEDDING_MODEL`
+- `EMBEDDING_DIMENSIONS`
+- `EMBEDDING_ENDPOINT`
+- `EMBEDDING_API_KEY`
+- `VECTOR_DB_PROVIDER`
+- `VECTOR_DB_URL`
+- `VECTOR_DB_KEY`
+- `CACHING`
+- `CACHE_BACKEND`
+- `OPENAI_API_KEY`
+- `APP_ENV`
+
+Redis can be configured either with `REDIS_URL` or the host/port/username/password fields.
+
+`REDIS_ACCOUNT_KEY` and `REDIS_API_KEY` are Redis Cloud REST API credentials. They are useful for management/API workflows, but this scaffold's Redis client still needs a database connection URI or host/port/user/password for runtime access.
+
+## Redis Setup Notes
+
+1. For the hackathon demo, run Redis locally with Docker or a local Redis install.
+2. Use `REDIS_HOST=localhost`, `REDIS_PORT=6379`, and `REDIS_SSL=false` for the default local setup.
+3. If you want Redis Cloud later, set `REDIS_URL` or the split connection fields and flip `REDIS_SSL=true` only when you are using TLS.
+4. `REDIS_ACCOUNT_KEY` and `REDIS_API_KEY` are still only Redis Cloud REST API credentials; they are not needed for the local demo.
+5. A quick local Redis start command is:
 
 ```bash
-python3 scripts/reset_demo.py
-python3 scripts/ingest_demo_data.py
-python3 scripts/smoke_test.py
-streamlit run app/streamlit_app.py
+docker run -d --name redis -p 6379:6379 redis:8.0.2
 ```
 
-Streamlit tabs:
+RedisVL uses a vector schema for knowledge chunks. The demo uses deterministic placeholder embeddings for the app's own Redis index, while local Cognee uses the configured embedding provider.
 
-- `1. Source Intake`: paste or upload `.md`, `.txt`, `.html`, `.htm`, or `.pdf` files. PDF requires `pypdf` or `PyPDF2`; otherwise Sherlock returns a clear unsupported parser error.
-- `2. Knowledge Wiki`: build the Deel wiki, refresh local chunks, show Redis/Cognee status, and preview `data/wiki/deel.md`.
-- `3. Battle Card`: generate the AE-ready cited brief. First run should show Redis `miss`; the second identical run should show `hit` when Redis is available.
-- `Analyst Review`: approve, reject, or edit pending changes. Approval writes to `data/wiki/deel.md` and invalidates cached Deel briefs.
+## Cognee Local Setup Notes
 
-Demo query:
+1. Install Cognee plus the Redis vector adapter: `pip install -e ".[cognee]"`
+2. Run Redis locally. The default config uses `VECTOR_DB_PROVIDER=redis` and `VECTOR_DB_URL=redis://localhost:6379`.
+3. Leave `ENABLE_BACKEND_ACCESS_CONTROL=false` for the local Redis demo. Cognee checks this flag from process environment variables, so the app loads `.env` into `os.environ` before the SDK is used.
+4. Configure both the LLM and embedding provider together. The sample `.env` uses OpenAI for both so the same API key can power the local Cognee runtime.
+5. Before the first local run after changing providers, prune old Cognee state if needed. The Cognee docs recommend `cognee.prune.prune_system(metadata=True)` when switching embedding/vector providers.
+6. If outbound OpenAI calls are not available in your environment, set `MOCK_EMBEDDING=true` and `COGNEE_SKIP_COGNIFY=true` for a demo-only local path that still ingests into Redis and returns chunk search results.
+
+The Cognee wrapper is intentionally isolated and marked so the SDK/config details can be tuned without touching the rest of the app.
+
+## Run Commands
+
+All commands assume the project has been installed with `pip install -e .`.
+
+```bash
+python -m app.main check-redis
+python -m app.main check-cognee
+python -m app.main check-openai
+python -m app.main ingest data/sample_gtm_notes.md
+python -m app.main query "Who is our ICP?"
+python -m app.main agent gtm "What GTM wedge should we start with?"
+```
+
+Scripts are also available:
+
+```bash
+python scripts/check_redis.py
+python scripts/check_cognee.py
+python scripts/check_openai.py
+python scripts/ingest_sample.py
+python scripts/query_sample.py
+```
+
+## Local Demo UI
+
+Run the Sherlock demo UI locally without Streamlit:
+
+```bash
+python app/local_web_app.py
+```
+
+Then open `http://127.0.0.1:8765`.
+
+The UI has four views:
+
+- AE View: select `Deel`, enter deal context, and generate a deterministic cited brief.
+- Wiki Intake: convert local incoming/source markdown into pending analyst proposals.
+- Analyst Review: approve, reject, or edit pending changes from `data/pending/pending_changes.json`.
+- Battle Card: inspect the canonical local markdown in `data/wiki/deel.md`.
+
+Approval appends the final text to `data/wiki/deel.md` under `## Recent Analyst-Approved Updates` and invalidates the local Redis cache prefix for Deel. Rejection only marks the pending change rejected. Wiki Intake reads from `data/incoming/` and `data/sources/`, compares those local files to the current battle card, and writes proposed changes to pending.
 
 ```text
 Series A fintech startup with 80 employees, expanding into Canada and the UK, currently evaluating Deel. They care about onboarding speed, compliance confidence, and predictable pricing.
