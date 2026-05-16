@@ -1,54 +1,100 @@
-# Deel Battle Card
+# Wiki: Deel
 
-## Metadata
-- Owner: Competitive Intelligence
-- Last reviewed: 2026-05-16
-- Confidence score: Medium
-- Pending changes: 1
+**Document type:** Canonical company snapshot
+**Owner:** Competitive Intelligence team
+**Last updated:** 2026-05-13 (via ingest pipeline)
+**Last reviewed by analyst:** 2026-04-30
+**Status:** Source of truth on Deel as a company. Battle card draws from this.
 
-## Positioning Headline
-Oyster is the calmer global employment partner for distributed teams that need guided compliance, predictable rollout support, and sales-to-success continuity.
+This document is the canonical factual snapshot of Deel. Pure facts and observable patterns. Not Oyster's competitive playbook. The Deel battle card at `/battle-cards/deel.md` references this for every Deel fact and adds the Oyster competitive angle on top.
 
-## Quantitative Fields
-- Customer count: Publicly positioned as serving thousands of companies.
-- Countries served: 180+ countries marketed by Deel; Oyster should focus on supported hiring scenarios rather than broad country-count claims.
-- Funding / valuation: Deel is widely perceived as a heavily funded global HR platform.
-- Headcount: Large global team.
-- Pricing: Often discussed as modular and quote-based for expansion needs.
-- Average deal size in Oyster funnel: Synthetic demo field, varies by segment.
-- Win rate vs Deel last 90 days: Synthetic demo field, not production data.
+---
 
-## Strengths to Acknowledge
-- Deel has broad brand awareness in global hiring and payroll conversations.
-- Deel is often shortlisted by founders because buyers recognize the name.
-- Deel markets a wide global HR platform, which can appeal to teams that want many capabilities from one vendor.
+## 1. Identity
+- **Company:** Deel
+- **Founded:** 2019
+- **HQ:** San Francisco, CA (distributed workforce)
+- **Funding:** Series D, ~$679M total raised (Source: Crunchbase, 2024)
+- **Valuation:** ~$12B last private round (Source: Forbes, 2023)
+- **ARR:** ~$1B+ in 2026 (Source: Bloomberg, 2025-Q4)
+- **Headcount:** ~3,500 (Source: LinkedIn, 2026-04)
+- **G2 rating:** 4.8 / 5 with 8,800+ verified reviews (Source: G2, 2026-04)
 
-## Weaknesses to Attack
-- Buyers in the demo sources describe uncertainty around who owns nuanced compliance questions after the sale.
-- Fast-moving product expansion can make packaging and scope feel harder to compare during procurement.
-- Founder-led teams may need more guided rollout support than a broad self-serve platform motion provides.
+## 2. Product
+Global HR platform spanning EOR, contractor, payroll, HRIS, IT provisioning, equity management, and as of 2026 immigration.
 
-## Common Objections and Responses
-- Objection: "Deel seems bigger." Response: "Bigger can be reassuring, but the decision should come down to the operating model for your first international hires, the quality of guidance, and how quickly your team can get compliant answers."
-- Objection: "We want one global HR platform." Response: "For an 80-person team expanding into a few countries, the key risk is not feature count. It is getting hiring, payroll, and compliance decisions right without slowing the business."
+**SKUs and pricing (2026):**
+- **EOR Plus:** $599 per employee per month (Source: deel.com pricing, 2026-04)
+- **EOR Standard:** ~$499 per employee per month (Source: third party pricing aggregators, 2026-03)
+- **Contractor:** $49 per contractor per month
+- **Global Payroll:** $29 per employee per month
+- **Contractor of Record:** $325 per contractor per month
 
-## Trap-Setting Discovery Questions
-- "When a country-specific employment question comes up after launch, who on the vendor side do you expect to own the answer?"
-- "Are you optimizing for the largest feature catalog or for the safest first 3-5 international hires?"
-- "How will your finance team compare quote-based add-ons across the vendors?"
+**Coverage:** EOR in 110+ countries. Contractor payments in 150+. 250 owned legal entities plus partner network. (Source: deel.com, 2026-04)
 
-## Customer Evidence
-- Synthetic Gong transcript: a Series A fintech buyer worried about post-sale compliance ownership.
-- Synthetic G2 review: a people ops lead praised speed but flagged difficulty comparing add-ons.
-- Synthetic launch note: Deel expanded AI workforce planning messaging, making the platform story broader.
+**Support model:** 24/7 multi channel (Slack, Teams, WhatsApp, phone, chat). ~1 minute chat response. 91% first contact resolution. (Source: Deel support page + G2 aggregate)
 
-## Segment-Specific Talk Track
-For Seed to Series B startups, position Oyster around guided international hiring, compliance confidence, and practical rollout support. Acknowledge Deel's brand, then redirect the buyer to operational risk, implementation clarity, and the support model for their first wave of hires.
+## 3. ICP (Deel's target customer)
+Generic platform pitch. Deel targets all stages and segments globally, anchored on:
+- Distributed teams hiring internationally (any stage)
+- Mid market and enterprise as they scale (~50 to 5,000+ employees)
+- VC backed startups via investor portfolio standardization plays
+- Companies looking for bundled HR + IT + Finance + Payroll
 
-## Recent Activity
-- Deel has recently emphasized broader HR platform and AI workforce planning messaging in the synthetic launch note.
+Deel does not narrow ICP publicly. They are the platform play, not a segment specialist.
 
-## Sources
-- gong_deel_transcript.md
-- g2_deel_review.md
-- deel_product_launch.md
+## 4. Positioning
+**Stated headline:** "The all in one platform to hire, manage, and pay your global workforce."
+
+Deel leads with:
+- Breadth (one platform, all of global HR)
+- Speed (fast onboarding, fast support)
+- Brand (category leader, investor portfolio default)
+
+## 5. General strengths (observable patterns)
+1. **Platform breadth.** Broadest global HR bundle in the category (EOR + contractor + payroll + HRIS + IT + equity + immigration).
+2. **24/7 multi channel support.** Industry leading response times.
+3. **Brand and category dominance.** Default shortlist slot. Investor portfolios often standardized.
+4. **UX and onboarding speed.** Best in class product polish. 36 hour international hire onboarding reported by G2 customers.
+5. **Pricing power.** Strong unit economics allow aggressive contractor segment pricing.
+6. **AI native positioning (as of May 2026).** Compliance Copilot launch signals strategic shift.
+
+## 6. General weaknesses (observable patterns)
+1. **US centric customization.** G2 reviews cite limited regional benefit customization and US default workflows in non US markets.
+2. **Compliance depth in regulated EU jurisdictions.** Fast onboarding playbook trades off against country by country legal nuance. Germany, France, Netherlands contractor classifications particularly exposed.
+3. **Transfer fees and pricing opacity at scale.** Higher bank/PayPal transfer fees than disclosed during sales. Add fees surface late in contracts.
+4. **CSM turnover at the 6 month mark.** G2 reviews flag replacement CSMs lacking customer context.
+5. **Crypto payout option not landing with finance buyers.** CFOs flagging crypto exposure as a blocker.
+
+## 7. Growth signals
+- ARR growth: ~50% YoY (~$650M to $1B+ between 2024 and 2026 per public estimates)
+- Headcount expansion across product, engineering, and customer success
+- Acquired several smaller payroll providers 2023-2025 to expand entity coverage
+- Aggressive product launches in 2026 (see Section 8)
+- Strategic shift toward AI native messaging in 2026
+
+## 8. Recent activity (chronological)
+
+- **2026-05-12:** Deel launched **Compliance Copilot**, AI agent for classification risk flagging across 110+ jurisdictions. Available to all Deel customers at no additional cost as of June 1, 2026. (Source: Deel changelog, 2026-05-12; TechCrunch, 2026-05-13)
+- **2026-04-22:** Expansion of contractor classification tooling for UK and Germany. Limited details. (Source: Deel blog, 2026-04-22)
+- **2026-03-15:** Major product event. ATS inside Deel HRIS. Deel Mobility (visa/immigration in 100+ countries). Redesigned mobile app with stablecoin payout and crypto holdings. (Source: Deel changelog, 2026-03-15)
+
+## 9. Material context
+
+- Deel competes head to head with Rippling on enterprise bundle plays
+- Deel competes head to head with Remote and Oyster on EOR midmarket
+- Internal sales motion observed: investor portfolio sales plays (one Deel contract per VC fund)
+- Cultural shift in 2026 toward AI native positioning (see Compliance Copilot)
+
+## 10. Customer base
+- 25,000+ customers (Source: deel.com, 2026)
+- Strong presence in late stage Series B/C US tech and AI startup stacks
+- Increasingly bundled into YC standard tooling
+- Weakest in regulated EU jurisdictions where compliance depth matters
+
+---
+
+## Cross references
+- `/battle-cards/deel.md` for the Oyster vs Deel competitive playbook
+- `/wiki/oyster.md` for Oyster's canonical company snapshot
+- `/pending-changes/` for proposed downstream battle card changes
