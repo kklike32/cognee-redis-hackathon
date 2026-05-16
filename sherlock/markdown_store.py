@@ -86,3 +86,31 @@ def reset_wiki(competitor: str = "deel", settings: Settings | None = None) -> Pa
     markdown = path.read_text(encoding="utf-8")
     path.write_text(remove_approved_blocks(markdown), encoding="utf-8")
     return path
+
+
+def append_approved_update(
+    text: str,
+    *,
+    source_citation: str,
+    path: Path,
+    timestamp: str | None = None,
+) -> str:
+    """Compatibility helper for HITL tests that append approved analyst updates."""
+    content = path.read_text(encoding="utf-8").rstrip() if path.exists() else ""
+    if not content:
+        content = "# Deel Battle Card"
+
+    heading = "## Recent Analyst-Approved Updates"
+    if heading not in content:
+        content = f"{content}\n\n{heading}"
+
+    stamp = timestamp or datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    update_block = (
+        f"\n\n### {stamp}\n\n"
+        f"{text.strip()}\n\n"
+        f"_Source: {source_citation.strip()}_\n"
+    )
+    updated = f"{content}{update_block}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(updated, encoding="utf-8")
+    return updated
