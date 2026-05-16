@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,12 +13,11 @@ from .config import Settings, get_settings
 from .markdown_store import read_wiki, wiki_path
 from .retrieval import retrieve_context_with_status
 
-SYSTEM_PROMPT = """You are Sherlock, a competitive-card agent for Oyster HR.
+SYSTEM_PROMPT = """You are Sherlock, an internal competitive-card agent for Oyster HR.
 Generate a deal-specific competitive brief for Oyster HR competing against Deel.
-Be accurate, concise, and useful to a sales team. Do not invent unsupported facts.
-Every factual competitive claim must cite the battle card, Gong-style source,
-G2-style source, or product launch source. Tailor the answer to the deal context
-and avoid generic sales fluff."""
+Be accurate, concise, and useful to sales. Do not invent unsupported facts.
+Every factual competitive claim must cite the Deel knowledge wiki, Gong-style source,
+G2-style source, product launch source, or another internal source."""
 
 
 @dataclass(frozen=True)
@@ -32,10 +32,11 @@ class BriefResult:
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "brief": self.markdown,
             "markdown": self.markdown,
             "brief_markdown": self.markdown,
-            "citations": self.citations,
             "sources": self.citations,
+            "citations": self.citations,
             "cache_status": self.cache_status,
             "latency_ms": self.latency_ms,
             "retrieval_status": self.retrieval_status,
@@ -55,110 +56,98 @@ def _citation_for(citations: list[dict[str, Any]], source_kind: str, fallback: i
     return citation_ref(citations, fallback)
 
 
-def _source_evidence(citations: list[dict[str, Any]], source_kind: str, fallback: int = 0) -> str:
-    for citation in citations:
-        if citation.get("source_type") == source_kind:
-            return str(citation.get("snippet", "")).strip()
-    if citations:
-        safe_index = max(0, min(fallback, len(citations) - 1))
-        return str(citations[safe_index].get("snippet", "")).strip()
-    return "No local source evidence was available. Run ingestion to populate demo chunks."
+def _extract_recent_updates(wiki: str) -> str:
+    approved_blocks = re.findall(
+        r"<!-- sherlock-approved:[^:]+:start -->(.*?)<!-- sherlock-approved:[^:]+:end -->",
+        wiki,
+        flags=re.DOTALL,
+    )
+    if approved_blocks:
+        return "\n".join(block.strip() for block in approved_blocks if block.strip())
+    marker = "## Recent Analyst-Approved Updates"
+    if marker not in wiki:
+        return ""
+    return wiki.split(marker, 1)[1].strip()
 
 
 def _fallback_brief(
     competitor: str,
     deal_context: str,
     wiki: str,
-    chunks: list[dict[str, Any]],
     citations: list[dict[str, Any]],
 ) -> str:
     battle = _citation_for(citations, "battle card", 0)
     gong = _citation_for(citations, "Gong-style source", 1)
     g2 = _citation_for(citations, "G2-style source", 2)
     launch = _citation_for(citations, "product launch source", 3)
-    approved_signal = ""
-    if "sherlock-approved" in wiki:
-        approved_signal = (
-            "\n- Include the approved analyst note in the talk track: emphasize named "
-            f"compliance ownership for first hires in Canada or the UK. {battle}"
-        )
-    context = deal_context.strip() or "No deal context provided."
-    evidence_snapshot = "\n".join(
-        [
-            f"- Battle card: {_source_evidence(citations, 'battle card', 0)} {battle}",
-            f"- Gong-style source: {_source_evidence(citations, 'Gong-style source', 1)} {gong}",
-            f"- G2-style source: {_source_evidence(citations, 'G2-style source', 2)} {g2}",
-            f"- Product launch source: {_source_evidence(citations, 'product launch source', 3)} {launch}",
-        ]
-    )
-    return f"""# Competitive Brief: Oyster HR vs {competitor.title()}
+    context = deal_context.strip() or "No specific deal context provided."
+    approved = _extract_recent_updates(wiki)
+    approved_line = ""
+    if approved:
+        first_line = next((line.strip("- ").strip() for line in approved.splitlines() if line.strip() and not line.startswith("###")), "")
+        if first_line:
+            approved_line = f"\n- Analyst-approved update to include: {first_line} {battle}"
+
+    return f"""# Sherlock AE Brief: Oyster HR vs {competitor.title()}
 
 ## Executive summary
 - Deal context: {context}
-- Deel has brand awareness and a broad global HR platform story, but Oyster should redirect this buyer to guided compliance, predictable rollout support, and sales-to-success continuity. {battle} {launch}
-- For this deal, the strongest wedge is the buyer's need for confident Canada and UK expansion without unclear post-sale compliance ownership or surprise add-ons. {gong} {g2}
+- Acknowledge Deel's brand and platform breadth, then redirect to Oyster's guided compliance posture and implementation confidence for lean international hiring teams. {battle} {launch}
+- For this deal, focus on Canada/UK expansion, post-signature compliance ownership, onboarding support, and predictable scope. {gong} {g2}
 
 ## Strengths to acknowledge
-- Deel is often shortlisted because buyers recognize the brand in global hiring and payroll conversations. {battle}
-- Deel's broader platform narrative can appeal to executives who want many HR capabilities from one vendor. {battle} {launch}
-- Deel can be associated with speed and easy initial onboarding, especially for contractor workflows. {g2}
+- Deel is well known and often enters deals through brand recognition. {battle}
+- Buyers may value Deel's broad platform story and fast setup. {battle} {g2}
+- Deel's automation messaging can sound attractive to teams seeking more HR operations in one place. {launch}
 
 ## Weaknesses to attack
-- The demo evidence shows buyer uncertainty around who owns nuanced compliance questions after the sale. {battle} {gong}
-- Packaging and add-on clarity can become a procurement issue when teams expand from contractors to full-time employees. {g2}
-- Deel's broad AI workforce-planning story can be reframed as less urgent than compliant first hires for an early-stage expansion. {launch}
+- The Gong-style deal evidence shows uncertainty about compliance support after implementation. {gong}
+- Lean people teams care deeply about support responsiveness when edge cases appear. {g2}
+- A broad automation narrative can distract from the immediate risk: getting the first international hires right. {launch}
 
 ## Likely objections
-- "Deel seems bigger." Acknowledge the brand, then ask who will own country-specific compliance answers after launch. {battle} {gong}
-- "We want one global HR platform." Redirect from feature breadth to the operational risk of getting the first Canada and UK hires right. {battle} {launch}
-- "Deel looks fast." Agree that speed matters, then separate fast onboarding from clear scope, support ownership, and predictable total cost. {g2}
+- "Deel seems bigger." Response: "That brand recognition is real. For this expansion, the bigger question is who owns country-specific compliance guidance after signature." {battle} {gong}
+- "We need speed." Response: "Speed matters, but for Canada and the UK it has to include country checklists, escalation paths, and fewer downstream mistakes." {gong}
+- "Deel has broader automation." Response: "Automation helps once the operating model is clear. First, confirm the compliant hiring path and support model." {launch}
 
 ## Recommended talk track
-- "Deel is a strong brand, and it makes sense that your CEO knows them. For this decision, I would focus less on the size of the platform and more on who will guide your first Canada and UK hires when nuanced employment questions come up after signature." {gong}
-- "Oyster's fit is strongest when a lean team needs a calmer expansion path: guided hiring, practical rollout support, and clarity on what is included before finance has to normalize add-ons." {battle} {g2}
-{approved_signal}
+- "For an 80-person fintech expanding into Canada and the UK, I would separate platform breadth from execution confidence. Deel is credible, but Oyster is the steadier fit when a lean team needs guided compliance handoffs and practical onboarding support." {battle} {gong}
+- "Before the board meeting, normalize what is included, what is an add-on, and who answers nuanced country questions after implementation." {g2}
+{approved_line}
 
 ## Trap-setting discovery questions
-- "When a country-specific employment question comes up after launch, who on the vendor side do you expect to own the answer?" {battle} {gong}
-- "Which services in the proposal are included, and which are add-ons your finance team needs to normalize before the board meeting?" {g2}
-- "Is the urgent problem AI workforce planning, or is it confidently hiring your next employees in Canada and the UK this quarter?" {launch}
+- "Who owns country-specific employment decisions after the contract is signed?" {battle} {gong}
+- "Which onboarding support is included for Canada and the UK, and where are the escalation paths documented?" {gong}
+- "Are you solving an immediate compliant-hiring problem or a broader HR automation problem?" {launch}
 
 ## Source citations
-{evidence_snapshot}
-
 {format_citations_markdown(citations)}
 """
 
 
-def _build_llm_prompt(
-    competitor: str,
-    deal_context: str,
-    wiki: str,
-    citations: list[dict[str, Any]],
-) -> str:
+def _build_llm_prompt(competitor: str, deal_context: str, wiki: str, citations: list[dict[str, Any]]) -> str:
     sources = "\n\n".join(
-        f"[{citation['id']}] {citation['source']} ({citation.get('source_type')}), "
-        f"{citation.get('heading')}:\n{citation.get('snippet')}"
+        f"[{citation['id']}] {citation['source']} ({citation.get('source_type')}):\n{citation.get('snippet')}"
         for citation in citations
     )
     return f"""{SYSTEM_PROMPT}
 
 Required sections:
-- Executive summary
-- Strengths to acknowledge
-- Weaknesses to attack
-- Likely objections
-- Recommended talk track
-- Trap-setting discovery questions
-- Source citations
+Executive summary
+Strengths to acknowledge
+Weaknesses to attack
+Likely objections
+Recommended talk track
+Trap-setting discovery questions
+Source citations
 
 Competitor: {competitor}
 Deal context: {deal_context}
 
-Battle card markdown:
+Deel knowledge wiki:
 {wiki[:6000]}
 
-Retrieved cited evidence:
+Retrieved sources:
 {sources}
 """
 
@@ -216,9 +205,10 @@ def _try_llm_brief(
 
 
 def _normalize_cached_payload(value: dict[str, Any]) -> dict[str, Any]:
-    markdown = value.get("brief_markdown") or value.get("markdown") or ""
+    markdown = value.get("brief_markdown") or value.get("markdown") or value.get("brief") or ""
     sources = value.get("sources") or value.get("citations") or []
     return {
+        "brief": markdown,
         "brief_markdown": markdown,
         "markdown": markdown,
         "sources": sources,
@@ -229,15 +219,18 @@ def _normalize_cached_payload(value: dict[str, Any]) -> dict[str, Any]:
 
 
 def generate_competitive_brief(
-    competitor: str,
-    deal_context: str,
+    competitor: str = "deel",
+    deal_context: str = "",
     use_cache: bool = True,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
     settings = settings or get_settings()
     start = time.perf_counter()
-    competitor = competitor.lower().strip() or settings.default_competitor
-    wiki_file = wiki_path(competitor, settings)
+    competitor = competitor.lower().strip() or "deel"
+    if competitor != "deel":
+        raise ValueError("Sherlock demo is scoped to Deel only.")
+
+    wiki_file = wiki_path("deel", settings)
     source_files = _source_paths(settings)
     cache_key = build_cache_key(competitor, deal_context, wiki_file, source_files)
 
@@ -245,26 +238,25 @@ def generate_competitive_brief(
     if use_cache:
         cached = get_cached_brief(cache_key, settings=settings)
         if cached.status == "hit" and cached.value:
-            elapsed = int((time.perf_counter() - start) * 1000)
             payload = _normalize_cached_payload(cached.value)
             return {
                 **payload,
                 "cache_status": "hit",
-                "latency_ms": elapsed,
+                "latency_ms": int((time.perf_counter() - start) * 1000),
                 "cache_key": cache_key,
             }
 
     query = (
-        f"Oyster HR versus {competitor} competitive battle card. Deal context: {deal_context}. "
-        "Prioritize compliance ownership, onboarding speed, support model, pricing clarity, "
-        "Canada, UK, Series A, fintech."
+        f"Oyster HR versus Deel battle card. Deal context: {deal_context}. "
+        "Canada UK compliance ownership onboarding support predictable pricing support responsiveness."
     )
-    retrieval = retrieve_context_with_status(query, competitor=competitor, top_k=8, settings=settings)
+    retrieval = retrieve_context_with_status(query, company="deel", top_k=8, settings=settings)
     citations = build_citations(retrieval.chunks)
-    wiki = read_wiki(competitor, settings)
+    wiki = read_wiki("deel", settings)
     llm_markdown, model_used = _try_llm_brief(competitor, deal_context, wiki, citations, settings)
-    markdown = llm_markdown or _fallback_brief(competitor, deal_context, wiki, retrieval.chunks, citations)
+    markdown = llm_markdown or _fallback_brief(competitor, deal_context, wiki, citations)
     payload = {
+        "brief": markdown,
         "brief_markdown": markdown,
         "markdown": markdown,
         "sources": citations,
@@ -278,11 +270,10 @@ def generate_competitive_brief(
         cache_status = "miss"
         set_cached_brief(cache_key, payload, settings=settings)
 
-    elapsed = int((time.perf_counter() - start) * 1000)
     return {
         **payload,
         "cache_status": cache_status,
-        "latency_ms": elapsed,
+        "latency_ms": int((time.perf_counter() - start) * 1000),
         "cache_key": cache_key,
     }
 
@@ -293,12 +284,7 @@ def generate_brief(
     use_cache: bool = True,
     settings: Settings | None = None,
 ) -> BriefResult:
-    payload = generate_competitive_brief(
-        competitor=competitor,
-        deal_context=deal_context,
-        use_cache=use_cache,
-        settings=settings,
-    )
+    payload = generate_competitive_brief(competitor, deal_context, use_cache=use_cache, settings=settings)
     return BriefResult(
         markdown=payload["brief_markdown"],
         citations=payload["sources"],

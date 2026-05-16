@@ -33,13 +33,11 @@ def _sha(value: str) -> str:
 def file_hash(path: Path) -> str:
     if not path.exists():
         return "missing"
-    return _sha(path.read_text(encoding="utf-8"))
+    return _sha(path.read_text(encoding="utf-8", errors="ignore"))
 
 
 def sources_hash(paths: list[Path]) -> str:
-    payload = []
-    for path in sorted(paths):
-        payload.append(f"{path.name}:{file_hash(path)}")
+    payload = [f"{path.name}:{file_hash(path)}" for path in sorted(paths)]
     return _sha("|".join(payload))
 
 
@@ -69,14 +67,15 @@ def build_cache_key(
     wiki_path: Path,
     source_paths: list[Path],
 ) -> str:
+    competitor = competitor.lower().strip() or "deel"
     key_payload = {
-        "competitor": competitor.lower(),
+        "competitor": competitor,
         "deal_context": deal_context.strip(),
         "prompt_version": PROMPT_VERSION,
         "wiki_hash": file_hash(wiki_path),
         "sources_hash": sources_hash(source_paths),
     }
-    return f"{CACHE_PREFIX}:{competitor.lower()}:{_sha(json.dumps(key_payload, sort_keys=True))}"
+    return f"{CACHE_PREFIX}:{competitor}:{_sha(json.dumps(key_payload, sort_keys=True))}"
 
 
 def get_cached_brief(key: str, settings: Settings | None = None) -> CacheLookup:
@@ -111,9 +110,9 @@ def delete_by_prefix(prefix: str, settings: Settings | None = None) -> int:
     client = redis_client(settings)
     if client is None:
         return 0
+    pattern = prefix if prefix.endswith("*") else f"{prefix}*"
     deleted = 0
     try:
-        pattern = prefix if prefix.endswith("*") else f"{prefix}*"
         for key in client.scan_iter(match=pattern):
             deleted += int(client.delete(key))
     except Exception:
@@ -121,20 +120,18 @@ def delete_by_prefix(prefix: str, settings: Settings | None = None) -> int:
     return deleted
 
 
-def invalidate_competitor_cache(competitor: str, settings: Settings | None = None) -> int:
-    return delete_by_prefix(f"{CACHE_PREFIX}:{competitor.lower()}:", settings=settings)
+def invalidate_competitor_cache(competitor: str = "deel", settings: Settings | None = None) -> int:
+    return delete_by_prefix(f"{CACHE_PREFIX}:{competitor.lower().strip()}:", settings=settings)
 
 
 def clear_demo_redis_keys(settings: Settings | None = None) -> int:
-    patterns = ["sherlock:*", "founderos:knowledge*", "idx:founderos-knowledge*"]
     deleted = 0
-    for pattern in patterns:
+    for pattern in ("sherlock:*", "founderos:knowledge*", "idx:founderos-knowledge*"):
         deleted += delete_by_prefix(pattern, settings=settings)
     client = redis_client(settings)
-    if client is None:
-        return deleted
-    try:
-        client.execute_command("FT.DROPINDEX", "founderos-knowledge", "DD")
-    except Exception:
-        pass
+    if client is not None:
+        try:
+            client.execute_command("FT.DROPINDEX", "founderos-knowledge", "DD")
+        except Exception:
+            pass
     return deleted

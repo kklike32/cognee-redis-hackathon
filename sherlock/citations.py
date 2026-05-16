@@ -4,14 +4,15 @@ from pathlib import Path
 from typing import Any
 
 
-def _clean_source_name(source: str) -> str:
+def clean_source_name(source: str) -> str:
     path = Path(source)
     return path.name if path.name else source
 
 
 def source_type(source: str) -> str:
-    name = _clean_source_name(source).lower()
-    if name == "deel.md" or "battle" in name or "/wiki/" in source.lower():
+    lowered = source.lower()
+    name = clean_source_name(source).lower()
+    if name == "deel.md" or "/wiki/" in lowered or "battle" in name:
         return "battle card"
     if "gong" in name:
         return "Gong-style source"
@@ -19,18 +20,18 @@ def source_type(source: str) -> str:
         return "G2-style source"
     if "launch" in name or "product" in name:
         return "product launch source"
-    return "local source"
+    return "internal source"
 
 
 def build_citations(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     citations: list[dict[str, Any]] = []
     seen: set[str] = set()
     for chunk in chunks:
-        source = str(chunk.get("source", "unknown"))
+        source = str(chunk.get("source") or chunk.get("source_path") or "unknown")
         metadata = chunk.get("metadata") or {}
         if not isinstance(metadata, dict):
             metadata = {}
-        key = f"{source}:{metadata.get('chunk_index', len(citations))}"
+        key = f"{source}:{metadata.get('chunk_index', len(citations))}:{chunk.get('text', '')[:80]}"
         if key in seen:
             continue
         seen.add(key)
@@ -38,13 +39,13 @@ def build_citations(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         citations.append(
             {
                 "id": label,
-                "source": _clean_source_name(source),
+                "source": clean_source_name(source),
                 "source_path": source,
                 "source_type": source_type(source),
                 "heading": metadata.get("heading_path") or chunk.get("title") or "Source",
                 "line_start": metadata.get("line_start"),
                 "line_end": metadata.get("line_end"),
-                "snippet": str(chunk.get("text", "")).strip()[:360],
+                "snippet": str(chunk.get("text", "")).strip()[:420],
             }
         )
     return citations
@@ -59,16 +60,14 @@ def citation_ref(citations: list[dict[str, Any]], index: int = 0) -> str:
 
 def format_citations_markdown(citations: list[dict[str, Any]]) -> str:
     if not citations:
-        return "_No citations found. Run ingestion to add local source chunks._"
+        return "_No citations found. Add or ingest local source files._"
     lines = []
     for citation in citations:
         location = ""
         if citation.get("line_start") and citation.get("line_end"):
             location = f", lines {citation['line_start']}-{citation['line_end']}"
-        source_kind = citation.get("source_type", "local source")
         lines.append(
-            f"- [{citation['id']}] {citation['source']} ({source_kind}) - "
-            f"{citation['heading']}{location}: "
-            f"{citation['snippet']}"
+            f"- [{citation['id']}] {citation['source']} ({citation.get('source_type', 'internal source')}) - "
+            f"{citation.get('heading', 'Source')}{location}: {citation.get('snippet', '')}"
         )
     return "\n".join(lines)

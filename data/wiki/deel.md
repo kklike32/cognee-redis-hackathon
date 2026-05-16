@@ -4,51 +4,57 @@
 - Owner: Competitive Intelligence
 - Last reviewed: 2026-05-16
 - Confidence score: Medium
-- Pending changes: 1
+- Pending changes: 0
+- Generation mode: deterministic-fallback
 
 ## Positioning Headline
-Oyster is the calmer global employment partner for distributed teams that need guided compliance, predictable rollout support, and sales-to-success continuity.
+Oyster is the steadier global employment partner for teams that need hands-on compliance support, predictable expansion guidance, and a sales motion built around trust.
 
 ## Quantitative Fields
-- Customer count: Publicly positioned as serving thousands of companies.
-- Countries served: 180+ countries marketed by Deel; Oyster should focus on supported hiring scenarios rather than broad country-count claims.
-- Funding / valuation: Deel is widely perceived as a heavily funded global HR platform.
-- Headcount: Large global team.
-- Pricing: Often discussed as modular and quote-based for expansion needs.
-- Average deal size in Oyster funnel: Synthetic demo field, varies by segment.
-- Win rate vs Deel last 90 days: Synthetic demo field, not production data.
+- Customer count: Internal demo placeholder
+- Countries served: Global employment coverage for distributed teams
+- Funding / valuation: Not used in this demo
+- Headcount: (gong_deel_transcript.md line 10: The buyer is a Series A fintech startup with 80 employees. They plan to hire in Canada and the UK in the next two quarters and are comparing Oyster against Deel.)
+- Pricing: Validate during discovery
+- Average deal size in Oyster funnel: Internal demo placeholder
+- Win rate vs Deel last 90 days: Internal demo placeholder
 
 ## Strengths to Acknowledge
-- Deel has broad brand awareness in global hiring and payroll conversations.
-- Deel is often shortlisted by founders because buyers recognize the name.
-- Deel markets a wide global HR platform, which can appeal to teams that want many capabilities from one vendor.
+- Deel has clear brand recognition in competitive deals. (g2_deel_review.md line 10: Deel helped our team move quickly when we needed contractor onboarding in multiple countries. The interface was easy to start with, and the vendor is well known enough that leadership felt comfortable putting it on the shortlist.)
+- Buyers may value broad platform coverage and fast setup. (deel_product_launch.md line 9: Deel announced expanded AI workforce planning messaging for global teams. The launch positions Deel as a broader HR operating system that can help companies plan headcount, model workforce scenarios, and connect hiring decisions to global employment workflows.)
+- Recent workflow automation messaging can make Deel feel like a single-place HR operations platform. (deel_product_launch.md line 9: Deel announced expanded AI workforce planning messaging for global teams. The launch positions Deel as a broader HR operating system that can help companies plan headcount, model workforce scenarios, and connect hiring decisions to global employment workflows.)
 
 ## Weaknesses to Attack
-- Buyers in the demo sources describe uncertainty around who owns nuanced compliance questions after the sale.
-- Fast-moving product expansion can make packaging and scope feel harder to compare during procurement.
-- Founder-led teams may need more guided rollout support than a broad self-serve platform motion provides.
+- Prospects may worry about support consistency and escalation paths after implementation. (g2_deel_review.md line 15: Deel's speed and familiarity are strengths. Packaging clarity and the support model for deeper employment questions are areas where Oyster can press with discovery.)
+- Lean people teams without dedicated employment counsel need guided compliance help. (gong_deel_transcript.md line 19: Buyer: "The biggest concern is compliance ownership. We do not have in-house employment counsel for every market, so I need to know who answers nuanced country questions after the contract is signed.")
+- Automation breadth should be reframed toward the buyer's riskier first international hires. (deel_product_launch.md line 12: The launch strengthens Deel's broad-platform story. It also creates a useful contrast for Oyster in early-stage deals: buyers may need fewer platform promises and more confidence in the country-specific path for their first international hires.)
 
 ## Common Objections and Responses
-- Objection: "Deel seems bigger." Response: "Bigger can be reassuring, but the decision should come down to the operating model for your first international hires, the quality of guidance, and how quickly your team can get compliant answers."
-- Objection: "We want one global HR platform." Response: "For an 80-person team expanding into a few countries, the key risk is not feature count. It is getting hiring, payroll, and compliance decisions right without slowing the business."
+- Objection: Deel seems bigger and more established.
+  Response: Acknowledge the brand, then reframe around implementation confidence, compliance guidance, and the buyer's specific expansion plan.
+- Objection: We need to move quickly.
+  Response: Tie speed to fewer downstream mistakes, not only contract signature speed.
+- Objection: Deel has more automation.
+  Response: Ask whether the buyer needs more workflow surface area or clearer country-specific support for the first risky hires.
 
 ## Trap-Setting Discovery Questions
-- "When a country-specific employment question comes up after launch, who on the vendor side do you expect to own the answer?"
-- "Are you optimizing for the largest feature catalog or for the safest first 3-5 international hires?"
-- "How will your finance team compare quote-based add-ons across the vendors?"
+- Which countries are highest risk for your first wave of hiring?
+- Who owns local compliance decisions after the contract is signed?
+- What would a bad onboarding experience cost your team in the first 90 days?
+- What escalation path do you expect if a country-specific onboarding question blocks payroll or start dates?
 
 ## Customer Evidence
-- Synthetic Gong transcript: a Series A fintech buyer worried about post-sale compliance ownership.
-- Synthetic G2 review: a people ops lead praised speed but flagged difficulty comparing add-ons.
-- Synthetic launch note: Deel expanded AI workforce planning messaging, making the platform story broader.
+- data/sources/deel_product_launch.md line 9: Deel announced expanded AI workforce planning messaging for global teams. The launch positions Deel as a broader HR operating system that can help companies plan headcount, model workforce scenarios, and connect hiring decisions to global employment workflows.
+- data/sources/g2_deel_review.md line 10: Deel helped our team move quickly when we needed contractor onboarding in multiple countries. The interface was easy to start with, and the vendor is well known enough that leadership felt comfortable putting it on the shortlist.
+- data/sources/gong_deel_transcript.md line 10: The buyer is a Series A fintech startup with 80 employees. They plan to hire in Canada and the UK in the next two quarters and are comparing Oyster against Deel.
 
 ## Segment-Specific Talk Track
-For Seed to Series B startups, position Oyster around guided international hiring, compliance confidence, and practical rollout support. Acknowledge Deel's brand, then redirect the buyer to operational risk, implementation clarity, and the support model for their first wave of hires.
+For Seed to Series B startups, lead with risk reduction and implementation confidence. The buyer wants to expand quickly, but they usually lack a large internal legal or people operations team.
 
 ## Recent Activity
-- Deel has recently emphasized broader HR platform and AI workforce planning messaging in the synthetic launch note.
+- Deel announced new workflow automation capabilities aimed at helping teams manage more HR operations in one place. (deel_product_launch.md line 9: Deel announced expanded AI workforce planning messaging for global teams. The launch positions Deel as a broader HR operating system that can help companies plan headcount, model workforce scenarios, and connect hiring decisions to global employment workflows.)
 
 ## Sources
-- gong_deel_transcript.md
-- g2_deel_review.md
-- deel_product_launch.md
+- data/sources/deel_product_launch.md
+- data/sources/g2_deel_review.md
+- data/sources/gong_deel_transcript.md

@@ -16,6 +16,7 @@ from sherlock.ingest import ingest_demo_data
 from sherlock.markdown_store import read_wiki
 from sherlock.pending_changes import approve_change, pending_only
 from sherlock.retrieval import retrieve_context
+from sherlock.wiki_builder import build_company_wiki
 
 
 def check(condition: bool, message: str) -> None:
@@ -30,6 +31,14 @@ def main() -> dict:
     import streamlit  # noqa: F401
 
     redis_status = redis_ping(settings)
+
+    wiki_result = build_company_wiki(company="deel", use_llm=True)
+    check(wiki_result["wiki_markdown"], "Wiki builder did not return markdown")
+    check(wiki_result["sources"], "Wiki builder did not return sources")
+    check(
+        wiki_result["cognee_status"] in {"indexed", "added_not_cognified", "missing", "error"},
+        f"Unexpected Cognee status: {wiki_result['cognee_status']}",
+    )
 
     ingest_result = ingest_demo_data(settings)
     check(ingest_result["chunks"] > 0, "Ingestion produced no chunks")
@@ -56,6 +65,11 @@ def main() -> dict:
     approved = approve_change(changes[0]["id"], settings=settings)
     updated_wiki = read_wiki("deel", settings=settings)
     check("sherlock-approved" in updated_wiki, "Approval did not update markdown")
+    after_approval = generate_competitive_brief("deel", context, settings=settings)
+    check(
+        "Analyst-approved update" in after_approval["brief_markdown"],
+        "Regenerated brief did not reflect approved analyst guidance",
+    )
     if redis_status["ok"]:
         check(
             int(approved.get("cache_keys_invalidated", 0)) >= 1,
@@ -68,6 +82,8 @@ def main() -> dict:
         "ok": True,
         "redis": redis_status,
         "ingested_chunks": ingest_result["chunks"],
+        "wiki_generation_mode": wiki_result["generation_mode"],
+        "wiki_cognee_status": wiki_result["cognee_status"],
         "retrieved_chunks": len(retrieved),
         "first_cache_status": first["cache_status"],
         "second_cache_status": second["cache_status"],
