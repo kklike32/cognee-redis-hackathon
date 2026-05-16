@@ -107,13 +107,13 @@ def set_cached_brief(key: str, value: dict[str, Any], settings: Settings | None 
         return False
 
 
-def invalidate_competitor_cache(competitor: str, settings: Settings | None = None) -> int:
+def delete_by_prefix(prefix: str, settings: Settings | None = None) -> int:
     client = redis_client(settings)
     if client is None:
         return 0
-    pattern = f"{CACHE_PREFIX}:{competitor.lower()}:*"
     deleted = 0
     try:
+        pattern = prefix if prefix.endswith("*") else f"{prefix}*"
         for key in client.scan_iter(match=pattern):
             deleted += int(client.delete(key))
     except Exception:
@@ -121,18 +121,18 @@ def invalidate_competitor_cache(competitor: str, settings: Settings | None = Non
     return deleted
 
 
+def invalidate_competitor_cache(competitor: str, settings: Settings | None = None) -> int:
+    return delete_by_prefix(f"{CACHE_PREFIX}:{competitor.lower()}:", settings=settings)
+
+
 def clear_demo_redis_keys(settings: Settings | None = None) -> int:
-    client = redis_client(settings)
-    if client is None:
-        return 0
     patterns = ["sherlock:*", "founderos:knowledge*", "idx:founderos-knowledge*"]
     deleted = 0
     for pattern in patterns:
-        try:
-            for key in client.scan_iter(match=pattern):
-                deleted += int(client.delete(key))
-        except Exception:
-            continue
+        deleted += delete_by_prefix(pattern, settings=settings)
+    client = redis_client(settings)
+    if client is None:
+        return deleted
     try:
         client.execute_command("FT.DROPINDEX", "founderos-knowledge", "DD")
     except Exception:

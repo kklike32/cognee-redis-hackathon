@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sherlock.cache import build_cache_key
+from sherlock.cache import build_cache_key, delete_by_prefix
 
 
 def test_cache_key_changes_with_wiki_hash(tmp_path):
@@ -15,3 +15,7 @@ def test_cache_key_changes_with_wiki_hash(tmp_path):
 
     assert first != second
     assert first.startswith("sherlock:brief:v1:deel:")
+
+
+def test_delete_by_prefix_handles_missing_redis():
+    assert delete_by_prefix("sherlock:test:", settings=None) >= 0

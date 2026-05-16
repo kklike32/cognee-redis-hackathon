@@ -15,6 +15,7 @@ from sherlock.config import get_settings
 from sherlock.ingest import ingest_demo_data
 from sherlock.markdown_store import read_wiki
 from sherlock.pending_changes import approve_change, pending_only
+from sherlock.retrieval import retrieve_context
 
 
 def check(condition: bool, message: str) -> None:
@@ -33,6 +34,9 @@ def main() -> dict:
 
     ingest_result = ingest_demo_data(settings)
     check(ingest_result["chunks"] > 0, "Ingestion produced no chunks")
+    retrieved = retrieve_context("Series A buyer compliance objections", "deel", top_k=2, settings=settings)
+    check(len(retrieved) >= 2, "Retrieval returned fewer than 2 chunks")
+    check(retrieved[0].get("citation_label"), "Retrieved chunks are missing citation labels")
 
     context = (
         "Series A fintech startup, 80 employees, expanding into Canada and the UK, "
@@ -59,6 +63,7 @@ def main() -> dict:
         "ok": True,
         "redis": redis_status,
         "ingested_chunks": ingest_result["chunks"],
+        "retrieved_chunks": len(retrieved),
         "first_cache_status": first.cache_status,
         "second_cache_status": second.cache_status,
         "approval_status": approved["status"],

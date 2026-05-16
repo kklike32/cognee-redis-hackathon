@@ -9,7 +9,7 @@ from .cache import build_cache_key, get_cached_brief, set_cached_brief
 from .citations import build_citations, citation_ref, format_citations_markdown
 from .config import Settings, get_settings
 from .markdown_store import read_wiki, wiki_path
-from .retrieval import retrieve_context
+from .retrieval import retrieve_context_with_status
 
 
 @dataclass(frozen=True)
@@ -113,7 +113,7 @@ def generate_brief(
         )
 
     query = f"{competitor} competitive battle card {deal_context}"
-    retrieval = retrieve_context(query, top_k=6, settings=settings)
+    retrieval = retrieve_context_with_status(query, competitor=competitor, top_k=6, settings=settings)
     citations = build_citations(retrieval.chunks)
     wiki = read_wiki(competitor, settings)
     markdown = _fallback_brief(competitor, deal_context, wiki, retrieval.chunks, citations)

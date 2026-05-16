@@ -106,8 +106,39 @@ def save_local_chunks(chunks: list[dict[str, Any]], settings: Settings | None = 
     settings.local_chunk_path.write_text(json.dumps(chunks, indent=2), encoding="utf-8")
 
 
-def search_local(query: str, top_k: int = 6, settings: Settings | None = None) -> list[dict[str, Any]]:
+def _decorate_results(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    decorated = []
+    for index, chunk in enumerate(chunks, start=1):
+        item = dict(chunk)
+        metadata = item.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+            item["metadata"] = metadata
+        source_path = str(item.get("source_path") or item.get("source") or "")
+        source_id = str(metadata.get("document_id") or _slug(Path(source_path).stem))
+        item.setdefault("source", source_path)
+        item["source_path"] = source_path
+        item["source_id"] = source_id
+        item["citation_label"] = f"S{index}"
+        item.setdefault("title", metadata.get("heading_path") or source_id)
+        item.setdefault("text", "")
+        decorated.append(item)
+    return decorated
+
+
+def search_local(
+    query: str,
+    competitor: str = "deel",
+    top_k: int = 6,
+    settings: Settings | None = None,
+) -> list[dict[str, Any]]:
     chunks = load_local_chunks(settings)
+    competitor = competitor.lower()
+    chunks = [
+        chunk
+        for chunk in chunks
+        if (chunk.get("metadata") or {}).get("competitor", competitor).lower() == competitor
+    ]
     scored = sorted(
         ((_score(query, chunk), chunk) for chunk in chunks),
         key=lambda item: item[0],
@@ -156,10 +187,15 @@ def search_cognee(query: str, top_k: int, settings: Settings | None = None) -> t
     return normalized[:top_k], "ok"
 
 
-def retrieve_context(query: str, top_k: int = 6, settings: Settings | None = None) -> RetrievalResult:
+def retrieve_context_with_status(
+    query: str,
+    competitor: str = "deel",
+    top_k: int = 6,
+    settings: Settings | None = None,
+) -> RetrievalResult:
     settings = settings or get_settings()
     cognee_chunks, cognee_status = search_cognee(query, top_k=top_k, settings=settings)
-    local_chunks = search_local(query, top_k=top_k, settings=settings)
+    local_chunks = search_local(query, competitor=competitor, top_k=top_k, settings=settings)
     merged: list[dict[str, Any]] = []
     seen: set[str] = set()
     for chunk in [*cognee_chunks, *local_chunks]:
@@ -177,3 +213,21 @@ def retrieve_context(query: str, top_k: int = 6, settings: Settings | None = Non
             "local": "ok" if local_chunks else "empty",
         },
     )
+
+
+def retrieve_context(
+    query: str,
+    competitor: str = "deel",
+    top_k: int = 6,
+    settings: Settings | None = None,
+) -> list[dict[str, Any]]:
+    if isinstance(competitor, int):
+        top_k = competitor
+        competitor = "deel"
+    result = retrieve_context_with_status(
+        query=query,
+        competitor=competitor,
+        top_k=top_k,
+        settings=settings,
+    )
+    return _decorate_results(result.chunks)
