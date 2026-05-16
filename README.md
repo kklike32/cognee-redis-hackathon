@@ -165,20 +165,24 @@ python scripts/ingest_sample.py
 python scripts/query_sample.py
 ```
 
-## Streamlit Demo UI
+## Local Demo UI
 
-Run the Sherlock demo UI locally:
+Run the Sherlock demo UI locally without Streamlit:
 
 ```bash
-streamlit run app/streamlit_app.py
+python app/local_web_app.py
 ```
 
-The UI has two tabs:
+Then open `http://127.0.0.1:8765`.
+
+The UI has four views:
 
 - AE View: select `Deel`, enter deal context, and generate a deterministic cited brief.
+- Wiki Intake: convert local incoming/source markdown into pending analyst proposals.
 - Analyst Review: approve, reject, or edit pending changes from `data/pending/pending_changes.json`.
+- Battle Card: inspect the canonical local markdown in `data/wiki/deel.md`.
 
-Approval appends the final text to `data/wiki/deel.md` under `## Recent Analyst-Approved Updates` and invalidates the local Redis cache prefix for Deel. Rejection only marks the pending change rejected.
+Approval appends the final text to `data/wiki/deel.md` under `## Recent Analyst-Approved Updates` and invalidates the local Redis cache prefix for Deel. Rejection only marks the pending change rejected. Wiki Intake reads from `data/incoming/` and `data/sources/`, compares those local files to the current battle card, and writes proposed changes to pending.
 
 Reset the demo state at any time:
 

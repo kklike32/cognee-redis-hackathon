@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sherlock</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="mark">S</span>
+        <div>
+          <h1>Sherlock</h1>
+          <p>Local competitive intelligence loop</p>
+        </div>
+      </div>
+      <div id="redisStatus" class="status">Checking Redis...</div>
+      <button id="resetBtn" class="ghost">Reset demo</button>
+      <p class="hint">Local-only UI. No cloud services, auth, or external APIs.</p>
+    </aside>
+
+    <main class="shell">
+      <nav class="tabs" aria-label="Sherlock workflow">
+        <button class="tab active" data-panel="aePanel">AE View</button>
+        <button class="tab" data-panel="intakePanel">Wiki Intake</button>
+        <button class="tab" data-panel="reviewPanel">Analyst Review</button>
+        <button class="tab" data-panel="battlecardPanel">Battle Card</button>
+      </nav>
+
+      <section id="aePanel" class="panel active">
+        <div class="panelHeader">
+          <div>
+            <h2>AE View</h2>
+            <p>Generate a cited brief from the current battle card and local source files.</p>
+          </div>
+          <select id="competitorSelect" aria-label="Competitor">
+            <option selected>Deel</option>
+          </select>
+        </div>
+        <label for="dealContext">Deal context</label>
+        <textarea id="dealContext">Series A fintech startup, 80 employees, expanding into Canada and the UK, currently evaluating Deel.</textarea>
+        <button id="generateBriefBtn" class="primary">Generate Brief</button>
+        <div id="briefMetrics" class="metrics"></div>
+        <article id="briefOutput" class="markdown empty">Generate a brief to see AE guidance.</article>
+      </section>
+
+      <section id="intakePanel" class="panel">
+        <div class="panelHeader">
+          <div>
+            <h2>Wiki Intake</h2>
+            <p>Turn local incoming/source markdown into pending analyst proposals.</p>
+          </div>
+          <button id="generatePendingBtn" class="primary">Generate Pending Changes</button>
+        </div>
+        <div class="flow">
+          <div><strong>1</strong><span>Read local wiki and incoming/source markdown</span></div>
+          <div><strong>2</strong><span>Create structured pending proposals</span></div>
+          <div><strong>3</strong><span>Analyst approves or rejects</span></div>
+          <div><strong>4</strong><span>Approved text appends to the battle card</span></div>
+        </div>
+        <pre id="intakeResult" class="jsonBlock">No intake run yet.</pre>
+      </section>
+
+      <section id="reviewPanel" class="panel">
+        <div class="panelHeader">
+          <div>
+            <h2>Analyst Review</h2>
+            <p>Edit, approve, or reject pending battle card updates.</p>
+          </div>
+        </div>
+        <div id="pendingList" class="pendingList"></div>
+      </section>
+
+      <section id="battlecardPanel" class="panel">
+        <div class="panelHeader">
+          <div>
+            <h2>Battle Card</h2>
+            <p>Canonical local markdown for Deel.</p>
+          </div>
+          <button id="refreshBtn" class="ghost">Refresh</button>
+        </div>
+        <article id="wikiOutput" class="markdown"></article>
+      </section>
+    </main>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>

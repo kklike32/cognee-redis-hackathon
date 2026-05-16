@@ -57,6 +57,29 @@ def save_pending_changes(changes: list[dict[str, Any]], path: Path = PENDING_PAT
     path.write_text(json.dumps(changes, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def upsert_pending_changes(
+    new_changes: list[dict[str, Any]],
+    *,
+    path: Path = PENDING_PATH,
+) -> list[dict[str, Any]]:
+    existing = load_pending_changes(path=path)
+    by_id = {change["id"]: change for change in existing if change.get("id")}
+
+    for change in new_changes:
+        normalized = normalize_change(change)
+        change_id = normalized.get("id")
+        if not change_id:
+            continue
+        current = by_id.get(change_id)
+        if current and current.get("status") != "pending":
+            continue
+        by_id[change_id] = normalized
+
+    merged = list(by_id.values())
+    save_pending_changes(merged, path=path)
+    return merged
+
+
 def normalize_change(change: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(change)
     normalized.setdefault("id", "")

@@ -11,3 +11,4 @@ build/
 .cache/
 data/.cache/
 *.log
+data/incoming/
