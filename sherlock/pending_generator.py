@@ -73,7 +73,8 @@ def generate_pending_from_wiki(
     persist: bool = True,
 ) -> dict[str, Any]:
     card_path = wiki_path or default_wiki_path(competitor)
-    card = card_path.read_text(encoding="utf-8").lower() if card_path.exists() else ""
+    card = card_path.read_text(encoding="utf-8") if card_path.exists() else ""
+    card_for_match = card.casefold()
     files = source_paths if source_paths is not None else _source_files()
     proposals: list[dict[str, Any]] = []
 
@@ -82,7 +83,7 @@ def generate_pending_from_wiki(
             continue
         text = source_path.read_text(encoding="utf-8")
         for line_number, line in _meaningful_lines(text):
-            if line.lower() in card:
+            if line.casefold() in card_for_match:
                 continue
             digest = hashlib.sha1(f"{source_path}:{line}".encode("utf-8")).hexdigest()[:10]
             proposals.append(
