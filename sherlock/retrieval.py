@@ -100,6 +100,23 @@ def load_local_chunks(settings: Settings | None = None) -> list[dict[str, Any]]:
     return raw if isinstance(raw, list) else []
 
 
+def _markdown_paths(settings: Settings, competitor: str) -> list[Path]:
+    paths = [settings.wiki_dir / f"{competitor.lower()}.md"]
+    paths.extend(sorted(settings.sources_dir.glob("*.md")))
+    return [path for path in paths if path.exists()]
+
+
+def _load_searchable_chunks(settings: Settings, competitor: str) -> list[dict[str, Any]]:
+    chunks = load_local_chunks(settings)
+    if chunks:
+        return chunks
+
+    markdown_chunks: list[dict[str, Any]] = []
+    for path in _markdown_paths(settings, competitor):
+        markdown_chunks.extend(split_markdown(path, competitor=competitor))
+    return markdown_chunks
+
+
 def save_local_chunks(chunks: list[dict[str, Any]], settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     settings.local_chunk_path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,7 +149,8 @@ def search_local(
     top_k: int = 6,
     settings: Settings | None = None,
 ) -> list[dict[str, Any]]:
-    chunks = load_local_chunks(settings)
+    settings = settings or get_settings()
+    chunks = _load_searchable_chunks(settings, competitor)
     competitor = competitor.lower()
     chunks = [
         chunk

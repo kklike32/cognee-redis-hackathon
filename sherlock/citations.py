@@ -9,6 +9,19 @@ def _clean_source_name(source: str) -> str:
     return path.name if path.name else source
 
 
+def source_type(source: str) -> str:
+    name = _clean_source_name(source).lower()
+    if name == "deel.md" or "battle" in name or "/wiki/" in source.lower():
+        return "battle card"
+    if "gong" in name:
+        return "Gong-style source"
+    if "g2" in name:
+        return "G2-style source"
+    if "launch" in name or "product" in name:
+        return "product launch source"
+    return "local source"
+
+
 def build_citations(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     citations: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -26,6 +39,8 @@ def build_citations(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "id": label,
                 "source": _clean_source_name(source),
+                "source_path": source,
+                "source_type": source_type(source),
                 "heading": metadata.get("heading_path") or chunk.get("title") or "Source",
                 "line_start": metadata.get("line_start"),
                 "line_end": metadata.get("line_end"),
@@ -50,8 +65,10 @@ def format_citations_markdown(citations: list[dict[str, Any]]) -> str:
         location = ""
         if citation.get("line_start") and citation.get("line_end"):
             location = f", lines {citation['line_start']}-{citation['line_end']}"
+        source_kind = citation.get("source_type", "local source")
         lines.append(
-            f"- [{citation['id']}] {citation['source']} - {citation['heading']}{location}: "
+            f"- [{citation['id']}] {citation['source']} ({source_kind}) - "
+            f"{citation['heading']}{location}: "
             f"{citation['snippet']}"
         )
     return "\n".join(lines)

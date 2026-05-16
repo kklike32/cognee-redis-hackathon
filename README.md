@@ -31,8 +31,10 @@ The default `.env.example` sets `MOCK_EMBEDDING=true` and `COGNEE_SKIP_COGNIFY=t
 ## Run The Demo
 
 ```bash
+docker compose up -d redis
 python3 scripts/reset_demo.py
 python3 scripts/ingest_demo_data.py
+python3 scripts/smoke_test.py
 streamlit run app/streamlit_app.py
 ```
 
@@ -45,6 +47,23 @@ Open the Streamlit URL, then:
 5. In Analyst Review, approve or edit the pending change.
 6. Return to AE View and regenerate to show the updated wiki content and cache invalidation.
 
+The agent entrypoint is:
+
+```python
+from sherlock.card_agent import generate_competitive_brief
+
+result = generate_competitive_brief(
+    competitor="deel",
+    deal_context=(
+        "Series A fintech startup with 80 employees, expanding into Canada and the UK, "
+        "currently evaluating Deel. They care about onboarding speed, compliance confidence, "
+        "and predictable pricing."
+    ),
+)
+```
+
+It returns `brief_markdown`, `sources`, `cache_status`, `latency_ms`, and `model_used`. By default the brief is deterministic and local. If `SHERLOCK_USE_LLM=true` and `OPENAI_API_KEY` or `LLM_API_KEY` is set, Sherlock will attempt an optional OpenAI Responses API call and fall back to the deterministic brief if the call fails.
+
 ## Smoke Test
 
 With Redis running:
@@ -53,7 +72,7 @@ With Redis running:
 python3 scripts/smoke_test.py
 ```
 
-The smoke test verifies Redis connectivity, Streamlit imports, local ingestion, cited brief generation, Redis cache hit behavior, approval-based markdown mutation, and cache invalidation. It resets the demo state when it finishes.
+The smoke test verifies Streamlit imports, local ingestion, cited retrieval, cited brief generation, approval-based markdown mutation, and cache invalidation. When Redis is running it also verifies first-run `miss` and second-run `hit` behavior. Without Redis, it verifies the no-cache fallback and reports `cache_status="disabled"`. It resets the demo state when it finishes.
 
 ## Project Layout
 
@@ -80,4 +99,5 @@ scripts/smoke_test.py          End-to-end smoke checks
 - Sherlock does not use Cognee Cloud or Redis Cloud.
 - Redis is used for local response caching. Ingestion also writes a local chunk index under `.cache/sherlock_chunks.json` for deterministic demo retrieval.
 - Cognee is attempted locally if installed. If Cognee or an LLM key is missing, the app keeps working with deterministic retrieval and brief generation.
+- Cache keys depend on competitor, deal context, the current battle-card hash, source hashes, and prompt version. Analyst approval updates `data/wiki/deel.md` and invalidates cached Deel briefs by Redis prefix.
 - The MVP supports Deel only.

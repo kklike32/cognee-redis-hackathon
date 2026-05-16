@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.reset_demo import reset_demo
 from sherlock.cache import invalidate_competitor_cache, redis_ping
-from sherlock.card_agent import generate_brief
+from sherlock.card_agent import generate_competitive_brief
 from sherlock.config import get_settings
 from sherlock.ingest import ingest_demo_data
 from sherlock.markdown_store import read_wiki
@@ -30,7 +30,6 @@ def main() -> dict:
     import streamlit  # noqa: F401
 
     redis_status = redis_ping(settings)
-    check(redis_status["ok"], redis_status["message"])
 
     ingest_result = ingest_demo_data(settings)
     check(ingest_result["chunks"] > 0, "Ingestion produced no chunks")
@@ -42,20 +41,26 @@ def main() -> dict:
         "Series A fintech startup, 80 employees, expanding into Canada and the UK, "
         "currently evaluating Deel."
     )
-    first = generate_brief("deel", context, settings=settings)
-    check(first.citations, "Brief did not include citations")
-    second = generate_brief("deel", context, settings=settings)
-    check(second.cache_status == "hit", f"Expected cache hit, got {second.cache_status}")
+    first = generate_competitive_brief("deel", context, settings=settings)
+    check(first["brief_markdown"], "Brief did not include markdown")
+    check(first["sources"], "Brief did not include sources")
+    second = generate_competitive_brief("deel", context, settings=settings)
+    expected_second_status = "hit" if redis_status["ok"] else "disabled"
+    check(
+        second["cache_status"] == expected_second_status,
+        f"Expected cache {expected_second_status}, got {second['cache_status']}",
+    )
 
     changes = pending_only(settings)
     check(changes, "No pending changes found")
     approved = approve_change(changes[0]["id"], settings=settings)
     updated_wiki = read_wiki("deel", settings=settings)
     check("sherlock-approved" in updated_wiki, "Approval did not update markdown")
-    check(
-        int(approved.get("cache_keys_invalidated", 0)) >= 1,
-        "Approval did not invalidate Redis cache keys",
-    )
+    if redis_status["ok"]:
+        check(
+            int(approved.get("cache_keys_invalidated", 0)) >= 1,
+            "Approval did not invalidate Redis cache keys",
+        )
 
     invalidate_competitor_cache("deel", settings=settings)
     reset_demo()
@@ -64,8 +69,9 @@ def main() -> dict:
         "redis": redis_status,
         "ingested_chunks": ingest_result["chunks"],
         "retrieved_chunks": len(retrieved),
-        "first_cache_status": first.cache_status,
-        "second_cache_status": second.cache_status,
+        "first_cache_status": first["cache_status"],
+        "second_cache_status": second["cache_status"],
+        "model_used": second["model_used"],
         "approval_status": approved["status"],
     }
 
