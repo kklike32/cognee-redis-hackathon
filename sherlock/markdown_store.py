@@ -1,106 +1,116 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-WIKI_DIR = Path("data") / "wiki"
-DEFAULT_WIKI_PATH = WIKI_DIR / "deel.md"
-APPROVED_UPDATES_HEADING = "## Recent Analyst-Approved Updates"
+from .config import Settings, get_settings
 
 
-def utc_timestamp() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+APPROVED_BLOCK_RE = re.compile(
+    r"\n?<!-- sherlock-approved:[^:]+:start -->.*?<!-- sherlock-approved:[^:]+:end -->\n?",
+    re.DOTALL,
+)
 
 
-def ensure_wiki_file(path: Path = DEFAULT_WIKI_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.write_text(default_deel_markdown(), encoding="utf-8")
+def wiki_path(competitor: str = "deel", settings: Settings | None = None) -> Path:
+    settings = settings or get_settings()
+    return settings.wiki_dir / f"{competitor.lower()}.md"
 
 
-def read_battle_card(path: Path = DEFAULT_WIKI_PATH) -> str:
-    ensure_wiki_file(path)
+def read_wiki(competitor: str = "deel", settings: Settings | None = None) -> str:
+    path = wiki_path(competitor, settings)
     return path.read_text(encoding="utf-8")
+
+
+def write_wiki(markdown: str, competitor: str = "deel", settings: Settings | None = None) -> Path:
+    path = wiki_path(competitor, settings)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(markdown, encoding="utf-8")
+    return path
+
+
+def wiki_last_updated(competitor: str = "deel", settings: Settings | None = None) -> str:
+    path = wiki_path(competitor, settings)
+    if not path.exists():
+        return "missing"
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _section_bounds(markdown: str, heading: str) -> tuple[int, int]:
+    start = markdown.find(heading)
+    if start == -1:
+        raise ValueError(f"Heading not found: {heading}")
+    next_match = re.search(r"\n##\s+", markdown[start + len(heading) :])
+    if not next_match:
+        return start, len(markdown)
+    return start, start + len(heading) + next_match.start()
+
+
+def remove_approved_blocks(markdown: str) -> str:
+    return APPROVED_BLOCK_RE.sub("\n", markdown).replace("\n\n\n", "\n\n")
+
+
+def apply_approved_change(
+    target_file: str,
+    target_section: str,
+    change_id: str,
+    proposed_markdown: str,
+    settings: Settings | None = None,
+) -> Path:
+    settings = settings or get_settings()
+    path = settings.root_dir / target_file
+    markdown = path.read_text(encoding="utf-8")
+    markdown = re.sub(
+        rf"\n?<!-- sherlock-approved:{re.escape(change_id)}:start -->.*?"
+        rf"<!-- sherlock-approved:{re.escape(change_id)}:end -->\n?",
+        "\n",
+        markdown,
+        flags=re.DOTALL,
+    )
+    start, end = _section_bounds(markdown, target_section)
+    section = markdown[start:end].rstrip()
+    rest = markdown[end:]
+    block = (
+        f"\n\n<!-- sherlock-approved:{change_id}:start -->\n"
+        f"{proposed_markdown.strip()}\n"
+        f"<!-- sherlock-approved:{change_id}:end -->"
+    )
+    updated = markdown[:start] + section + block + rest
+    path.write_text(updated, encoding="utf-8")
+    return path
+
+
+def reset_wiki(competitor: str = "deel", settings: Settings | None = None) -> Path:
+    path = wiki_path(competitor, settings)
+    markdown = path.read_text(encoding="utf-8")
+    path.write_text(remove_approved_blocks(markdown), encoding="utf-8")
+    return path
 
 
 def append_approved_update(
     text: str,
     *,
     source_citation: str,
-    path: Path = DEFAULT_WIKI_PATH,
+    path: Path,
     timestamp: str | None = None,
 ) -> str:
-    ensure_wiki_file(path)
-    content = path.read_text(encoding="utf-8").rstrip()
-    timestamp = timestamp or utc_timestamp()
+    """Compatibility helper for HITL tests that append approved analyst updates."""
+    content = path.read_text(encoding="utf-8").rstrip() if path.exists() else ""
+    if not content:
+        content = "# Deel Battle Card"
 
-    if APPROVED_UPDATES_HEADING not in content:
-        content = f"{content}\n\n{APPROVED_UPDATES_HEADING}"
+    heading = "## Recent Analyst-Approved Updates"
+    if heading not in content:
+        content = f"{content}\n\n{heading}"
 
+    stamp = timestamp or datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     update_block = (
-        f"\n\n### {timestamp}\n\n"
+        f"\n\n### {stamp}\n\n"
         f"{text.strip()}\n\n"
         f"_Source: {source_citation.strip()}_\n"
     )
     updated = f"{content}{update_block}"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(updated, encoding="utf-8")
     return updated
-
-
-def default_deel_markdown() -> str:
-    return """# Deel Battle Card
-
-## Metadata
-- Owner: Competitive Intelligence
-- Last reviewed: 2026-05-16
-- Confidence score: Medium
-- Pending changes: 1
-
-## Positioning Headline
-Oyster is the steadier global employment partner for teams that need hands-on compliance support, predictable expansion guidance, and a sales motion built around trust.
-
-## Quantitative Fields
-- Customer count: Internal demo placeholder
-- Countries served: Global employment coverage for distributed teams
-- Funding / valuation: Not used in this demo
-- Headcount: Not used in this demo
-- Pricing: Validate during discovery
-- Average deal size in Oyster funnel: Internal demo placeholder
-- Win rate vs Deel last 90 days: Internal demo placeholder
-
-## Strengths to Acknowledge
-- Deel is well known and often enters deals through brand recognition.
-- Buyers may perceive Deel as broad and fast-moving.
-- Deel can be attractive when a prospect wants a single vendor shortlist quickly.
-
-## Weaknesses to Attack
-- Prospects may worry about support consistency after implementation.
-- Complex cross-border hiring plans create room to emphasize Oyster's guided compliance posture.
-- Fast platform breadth can make the buying conversation feel less consultative.
-
-## Common Objections and Responses
-- Objection: Deel seems bigger and more established.
-  Response: Acknowledge the brand, then reframe around implementation confidence, compliance guidance, and the buyer's specific expansion plan.
-- Objection: We need to move quickly.
-  Response: Tie speed to fewer downstream mistakes, not only contract signature speed.
-
-## Trap-Setting Discovery Questions
-- Which countries are highest risk for your first wave of hiring?
-- Who owns local compliance decisions after the contract is signed?
-- What would a bad onboarding experience cost your team in the first 90 days?
-
-## Customer Evidence
-- Synthetic Gong note: prospects expanding into Canada and the UK asked for more country-specific onboarding support.
-- Synthetic review signal: support responsiveness is a deciding factor for lean people teams.
-
-## Segment-Specific Talk Track
-For Seed to Series B startups, lead with risk reduction and implementation confidence. The buyer wants to expand quickly, but they usually lack a large internal legal or people operations team.
-
-## Recent Activity
-- Synthetic product launch note: Deel announced new workflow automation capabilities.
-
-## Sources
-- data/sources/gong_deel_transcript.md
-- data/sources/g2_deel_review.md
-- data/sources/deel_product_launch.md
-"""

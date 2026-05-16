@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .markdown_store import DEFAULT_WIKI_PATH, read_battle_card
+from .markdown_store import wiki_path as default_wiki_path
 from .pending_changes import upsert_pending_changes
 
 INCOMING_DIR = Path("data") / "incoming"
@@ -68,11 +68,12 @@ def _proposal_text(line: str) -> str:
 def generate_pending_from_wiki(
     *,
     competitor: str = "Deel",
-    wiki_path: Path = DEFAULT_WIKI_PATH,
+    wiki_path: Path | None = None,
     source_paths: list[Path] | None = None,
     persist: bool = True,
 ) -> dict[str, Any]:
-    card = read_battle_card(wiki_path).lower()
+    card_path = wiki_path or default_wiki_path(competitor)
+    card = card_path.read_text(encoding="utf-8").lower() if card_path.exists() else ""
     files = source_paths if source_paths is not None else _source_files()
     proposals: list[dict[str, Any]] = []
 

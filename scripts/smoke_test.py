@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.reset_demo import reset_demo
+from sherlock.cache import invalidate_competitor_cache, redis_ping
+from sherlock.card_agent import generate_competitive_brief
+from sherlock.config import get_settings
+from sherlock.ingest import ingest_demo_data
+from sherlock.markdown_store import read_wiki
+from sherlock.pending_changes import approve_change, pending_only
+from sherlock.retrieval import retrieve_context
+from sherlock.wiki_builder import build_company_wiki
+
+
+def check(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def main() -> dict:
+    settings = get_settings()
+    reset_demo()
+
+    import streamlit  # noqa: F401
+
+    redis_status = redis_ping(settings)
+
+    wiki_result = build_company_wiki(company="deel", use_llm=True)
+    check(wiki_result["wiki_markdown"], "Wiki builder did not return markdown")
+    check(wiki_result["sources"], "Wiki builder did not return sources")
+    check(
+        wiki_result["cognee_status"] in {"indexed", "added_not_cognified", "missing", "error"},
+        f"Unexpected Cognee status: {wiki_result['cognee_status']}",
+    )
+
+    ingest_result = ingest_demo_data(settings)
+    check(ingest_result["chunks"] > 0, "Ingestion produced no chunks")
+    retrieved = retrieve_context("Series A buyer compliance objections", "deel", top_k=2, settings=settings)
+    check(len(retrieved) >= 2, "Retrieval returned fewer than 2 chunks")
+    check(retrieved[0].get("citation_label"), "Retrieved chunks are missing citation labels")
+
+    context = (
+        "Series A fintech startup, 80 employees, expanding into Canada and the UK, "
+        "currently evaluating Deel."
+    )
+    first = generate_competitive_brief("deel", context, settings=settings)
+    check(first["brief_markdown"], "Brief did not include markdown")
+    check(first["sources"], "Brief did not include sources")
+    second = generate_competitive_brief("deel", context, settings=settings)
+    expected_second_status = "hit" if redis_status["ok"] else "disabled"
+    check(
+        second["cache_status"] == expected_second_status,
+        f"Expected cache {expected_second_status}, got {second['cache_status']}",
+    )
+
+    changes = pending_only(settings)
+    check(changes, "No pending changes found")
+    approved = approve_change(changes[0]["id"], settings=settings)
+    updated_wiki = read_wiki("deel", settings=settings)
+    check("sherlock-approved" in updated_wiki, "Approval did not update markdown")
+    after_approval = generate_competitive_brief("deel", context, settings=settings)
+    check(
+        "Analyst-approved update" in after_approval["brief_markdown"],
+        "Regenerated brief did not reflect approved analyst guidance",
+    )
+    if redis_status["ok"]:
+        check(
+            int(approved.get("cache_keys_invalidated", 0)) >= 1,
+            "Approval did not invalidate Redis cache keys",
+        )
+
+    invalidate_competitor_cache("deel", settings=settings)
+    reset_demo()
+    return {
+        "ok": True,
+        "redis": redis_status,
+        "ingested_chunks": ingest_result["chunks"],
+        "wiki_generation_mode": wiki_result["generation_mode"],
+        "wiki_cognee_status": wiki_result["cognee_status"],
+        "retrieved_chunks": len(retrieved),
+        "first_cache_status": first["cache_status"],
+        "second_cache_status": second["cache_status"],
+        "model_used": second["model_used"],
+        "approval_status": approved["status"],
+    }
+
+
+if __name__ == "__main__":
+    print(json.dumps(main(), indent=2))

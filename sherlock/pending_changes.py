@@ -5,155 +5,146 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .markdown_store import append_approved_update
-
-PENDING_PATH = Path("data") / "pending" / "pending_changes.json"
-VALID_PRIORITIES = {"Critical", "Nice to have", "FYI"}
-PENDING_STATUSES = {"pending", "approved", "rejected"}
+from .cache import invalidate_competitor_cache
+from .config import Settings, get_settings
+from .markdown_store import append_approved_update, apply_approved_change
 
 
-def utc_timestamp() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
-def default_pending_changes() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": "deel-support-canada-uk-001",
-            "competitor": "Deel",
-            "priority": "Critical",
-            "proposed_section": "Weaknesses to Attack",
-            "proposed_text": (
-                "Recent deal notes suggest prospects expanding into Canada and the UK "
-                "are asking for more country-specific onboarding guidance. Position Oyster "
-                "as the safer choice when the buyer has a lean people team and needs "
-                "clear compliance handoffs after signature."
-            ),
-            "source_citation": "data/sources/gong_deel_transcript.md#L8-L14",
-            "status": "pending",
-        }
-    ]
-
-
-def ensure_pending_file(path: Path = PENDING_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        save_pending_changes(default_pending_changes(), path=path)
-
-
-def load_pending_changes(path: Path = PENDING_PATH) -> list[dict[str, Any]]:
-    ensure_pending_file(path)
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+def load_changes(settings: Settings | None = None, path: Path | None = None) -> list[dict[str, Any]]:
+    pending_path = path or (settings or get_settings()).pending_path
+    if not pending_path.exists():
         return []
-    if not isinstance(raw, list):
-        return []
-    return [normalize_change(change) for change in raw if isinstance(change, dict)]
+    raw = json.loads(pending_path.read_text(encoding="utf-8"))
+    return raw if isinstance(raw, list) else []
 
 
-def save_pending_changes(changes: list[dict[str, Any]], path: Path = PENDING_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(changes, indent=2, ensure_ascii=False), encoding="utf-8")
+def save_changes(changes: list[dict[str, Any]], settings: Settings | None = None, path: Path | None = None) -> None:
+    pending_path = path or (settings or get_settings()).pending_path
+    pending_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_path.write_text(json.dumps(changes, indent=2), encoding="utf-8")
 
 
 def upsert_pending_changes(
     new_changes: list[dict[str, Any]],
     *,
-    path: Path = PENDING_PATH,
+    settings: Settings | None = None,
+    path: Path | None = None,
 ) -> list[dict[str, Any]]:
-    existing = load_pending_changes(path=path)
-    by_id = {change["id"]: change for change in existing if change.get("id")}
-
-    for change in new_changes:
-        normalized = normalize_change(change)
-        change_id = normalized.get("id")
-        if not change_id:
+    changes = load_changes(settings=settings, path=path)
+    by_id = {change["id"]: change for change in changes if change.get("id")}
+    for incoming in new_changes:
+        change_id = incoming.get("id")
+        if not isinstance(change_id, str) or not change_id:
             continue
-        current = by_id.get(change_id)
-        if current and current.get("status") != "pending":
+        existing = by_id.get(change_id)
+        if existing and existing.get("status") != "pending":
             continue
-        by_id[change_id] = normalized
-
-    merged = list(by_id.values())
-    save_pending_changes(merged, path=path)
-    return merged
-
-
-def normalize_change(change: dict[str, Any]) -> dict[str, Any]:
-    normalized = dict(change)
-    normalized.setdefault("id", "")
-    normalized.setdefault("competitor", "Deel")
-    normalized.setdefault("priority", "FYI")
-    normalized.setdefault("proposed_section", "Recent Analyst-Approved Updates")
-    normalized.setdefault("proposed_text", "")
-    normalized.setdefault("source_citation", "")
-    normalized.setdefault("status", "pending")
-    if normalized["priority"] not in VALID_PRIORITIES:
-        normalized["priority"] = "FYI"
-    if normalized["status"] not in PENDING_STATUSES:
-        normalized["status"] = "pending"
-    return normalized
+        merged = dict(existing or {})
+        merged.update(incoming)
+        merged.setdefault("status", "pending")
+        merged.setdefault("created_at", _now())
+        merged["updated_at"] = _now()
+        by_id[change_id] = merged
+    merged_changes = list(by_id.values())
+    save_changes(merged_changes, settings=settings, path=path)
+    return merged_changes
 
 
-def find_change(change_id: str, changes: list[dict[str, Any]]) -> dict[str, Any]:
+def pending_only(settings: Settings | None = None) -> list[dict[str, Any]]:
+    return [change for change in load_changes(settings) if change.get("status") == "pending"]
+
+
+def update_change_text(change_id: str, proposed_markdown: str, settings: Settings | None = None) -> dict[str, Any]:
+    changes = load_changes(settings)
     for change in changes:
         if change.get("id") == change_id:
+            change["proposed_markdown"] = proposed_markdown
+            change["updated_at"] = _now()
+            save_changes(changes, settings)
             return change
-    raise KeyError(f"Pending change not found: {change_id}")
+    raise ValueError(f"Pending change not found: {change_id}")
 
 
 def approve_change(
     change_id: str,
+    edited_markdown: str | None = None,
+    settings: Settings | None = None,
     *,
     edited_text: str | None = None,
-    path: Path = PENDING_PATH,
+    path: Path | None = None,
     wiki_path: Path | None = None,
 ) -> dict[str, Any]:
-    changes = load_pending_changes(path=path)
-    change = find_change(change_id, changes)
-    if change.get("status") == "approved":
-        save_pending_changes(changes, path=path)
-        return change
-
-    final_text = (edited_text if edited_text is not None else change.get("proposed_text", "")).strip()
-    if wiki_path is None:
-        append_approved_update(final_text, source_citation=str(change.get("source_citation", "")))
-    else:
-        append_approved_update(
-            final_text,
-            source_citation=str(change.get("source_citation", "")),
-            path=wiki_path,
+    settings = settings or get_settings()
+    changes = load_changes(settings=settings, path=path)
+    for change in changes:
+        if change.get("id") != change_id:
+            continue
+        final_markdown = (
+            edited_text
+            if edited_text is not None
+            else edited_markdown
+            if edited_markdown is not None
+            else change.get("proposed_markdown")
+            if change.get("proposed_markdown") is not None
+            else str(change.get("proposed_text", ""))
         )
-    change["proposed_text"] = final_text
-    change["status"] = "approved"
-    change["approved_at"] = utc_timestamp()
-    save_pending_changes(changes, path=path)
-    return change
+
+        if path is not None:
+            target_wiki = wiki_path or settings.wiki_dir / "deel.md"
+            append_approved_update(
+                final_markdown,
+                source_citation=str(change.get("source_citation", "")),
+                path=target_wiki,
+            )
+        else:
+            apply_approved_change(
+                target_file=change["target_file"],
+                target_section=change["target_section"],
+                change_id=change_id,
+                proposed_markdown=final_markdown,
+                settings=settings,
+            )
+
+        if "proposed_markdown" in change:
+            change["proposed_markdown"] = final_markdown
+        if "proposed_text" in change:
+            change["proposed_text"] = final_markdown
+        change["status"] = "approved"
+        change["resolved_at"] = _now()
+        change["approved_at"] = _now()
+        change["updated_at"] = _now()
+        if path is None:
+            invalidated = invalidate_competitor_cache(change.get("competitor", "deel"), settings=settings)
+            change["cache_keys_invalidated"] = invalidated
+        save_changes(changes, settings=settings, path=path)
+        return change
+    raise ValueError(f"Pending change not found: {change_id}")
 
 
-def reject_change(change_id: str, *, path: Path = PENDING_PATH) -> dict[str, Any]:
-    changes = load_pending_changes(path=path)
-    change = find_change(change_id, changes)
-    change["status"] = "rejected"
-    change["rejected_at"] = utc_timestamp()
-    save_pending_changes(changes, path=path)
-    return change
+def reject_change(change_id: str, settings: Settings | None = None, *, path: Path | None = None) -> dict[str, Any]:
+    settings = settings or get_settings()
+    changes = load_changes(settings=settings, path=path)
+    for change in changes:
+        if change.get("id") == change_id:
+            change["status"] = "rejected"
+            change["resolved_at"] = _now()
+            change["rejected_at"] = _now()
+            change["updated_at"] = _now()
+            save_changes(changes, settings=settings, path=path)
+            return change
+    raise ValueError(f"Pending change not found: {change_id}")
 
 
-def invalidate_competitor_cache(competitor: str) -> dict[str, Any]:
-    prefix = f"sherlock:brief:{competitor.strip().lower()}:"
-    try:
-        from app.redis_client import create_redis_client
-
-        client = create_redis_client()
-        keys = list(client.scan_iter(f"{prefix}*"))
-        deleted = int(client.delete(*keys)) if keys else 0
-        return {"ok": True, "deleted": deleted, "prefix": prefix}
-    except Exception as exc:
-        return {
-            "ok": False,
-            "deleted": 0,
-            "prefix": prefix,
-            "message": f"Cache invalidation skipped: {exc}",
-        }
+def reset_pending(settings: Settings | None = None) -> list[dict[str, Any]]:
+    changes = load_changes(settings)
+    for change in changes:
+        change["status"] = "pending"
+        change.pop("resolved_at", None)
+        change.pop("cache_keys_invalidated", None)
+        change["updated_at"] = change.get("created_at") or _now()
+    save_changes(changes, settings)
+    return changes

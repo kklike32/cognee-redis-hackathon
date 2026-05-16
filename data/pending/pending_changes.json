@@ -1,11 +1,18 @@
 [
   {
-    "id": "deel-support-canada-uk-001",
-    "competitor": "Deel",
-    "priority": "Critical",
-    "proposed_section": "Weaknesses to Attack",
-    "proposed_text": "Recent deal notes suggest prospects expanding into Canada and the UK are asking for more country-specific onboarding guidance. Position Oyster as the safer choice when the buyer has a lean people team and needs clear compliance handoffs after signature.",
-    "source_citation": "data/sources/gong_deel_transcript.md#L8-L14",
-    "status": "pending"
+    "id": "chg-deel-compliance-owner-001",
+    "competitor": "deel",
+    "title": "Add compliance ownership talk track for Series A expansion deals",
+    "status": "pending",
+    "target_file": "data/wiki/deel.md",
+    "target_section": "## Segment-Specific Talk Track",
+    "rationale": "The Gong-style transcript and G2-style review both show buyers asking who owns nuanced country-specific employment questions after onboarding.",
+    "source_ids": [
+      "gong_deel_transcript",
+      "g2_deel_review"
+    ],
+    "proposed_markdown": "- For Series A teams hiring first employees in Canada or the UK, explicitly ask who will own nuanced country-specific compliance questions after go-live. Position Oyster as the guided partner for first-market expansion, not just a tool for onboarding paperwork.",
+    "created_at": "2026-05-16T09:00:00-07:00",
+    "updated_at": "2026-05-16T09:00:00-07:00"
   }
 ]
