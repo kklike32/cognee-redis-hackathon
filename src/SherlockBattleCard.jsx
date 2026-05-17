@@ -21,7 +21,7 @@ const SHERLOCK_MARKDOWN = `
 ## Technical Highlights
 - **AI-powered CDC pipeline**
 - **Integrations**: CRM, Gong, G2, web monitoring
-- **Realtime update/sync**: Battles cards, Seismic, Highspot, Redis cache
+- **Realtime update/sync**: Battle cards, Seismic, Highspot, Redis cache
 - **Stack**: React, Express, PostgreSQL, Drizzle ORM, Redis
 
 ---
