@@ -12,3 +12,4 @@ build/
 data/.cache/
 *.log
 .venv312
+node_modules/
